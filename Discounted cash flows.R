@@ -76,7 +76,7 @@ getProjectPresentValue <- function(
       positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       for (l in 1:months) {
         monthly.payment.date <- arrival.date + months(l)
-        entry <- list(monthly.payment.date, monthly.payment, TRUE, "During development monthly payment")
+        entry <- list(monthly.payment.date, monthly.payment, TRUE, "Monthly charge")
         positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       }
       end.date <- arrival.date + months(months)
@@ -245,7 +245,7 @@ value.landings <- getProjectPresentValue(
   advance.charge.rate=1, # Percentage of the final price that is paid at the begining of the project
   during.development.charge.rate=0, # Percentage of the final price that is paid during the development of the project
   final.charge.rate=0, # Percentage of the final price that is paid at the end of the development of the project
-  monthly.rent.rate=0 # Percentaje of the price of the project to be charged monthly for project maintenance
+  monthly.rent.rate=0.025 # Percentaje of the price of the project to be charged monthly for project maintenance
 )
 
 value.small.projects <- getProjectPresentValue(
@@ -333,5 +333,30 @@ cost.present.value <- 0
 # TODO: Consider inflation rates
 monthly.cost.present.value <- monthly.cost*((1-(1/(1+y12))^(12*t))/y12)
 total.cost <- initial.cost + monthly.cost.present.value
+
+# Estimating
+landings.npvs <- c()
+for (k in 1:10) {
+  value.landings <- getProjectPresentValue(
+    t=10, # Lifetime of the company
+    # Mexican economy
+    y=0.1, # Annual interest rate
+    r=-0.02, # Inflation rate
+    # Princing of the project
+    average.price=10000, # Expected price of the project
+    sd.price=2000, # Standar deviation of the price of the project
+    minimum.price=7000, # Minimum price accepted for the project
+    average.development.months=1, # Expected development time of the project measured in months
+    lambda.po=12*2, # Expected number of projects developed in a year
+    # Payment scheme
+    advance.charge.rate=1, # Percentage of the final price that is paid at the begining of the project
+    during.development.charge.rate=0, # Percentage of the final price that is paid during the development of the project
+    final.charge.rate=0, # Percentage of the final price that is paid at the end of the development of the project
+    monthly.rent.rate=0 # Percentaje of the price of the project to be charged monthly for project maintenance
+  )
+  landings.npvs <- c(landings.npvs, value.landings[[5]])
+}
+landings.mean.npv <- mean(landings.npvs)
+
 
 

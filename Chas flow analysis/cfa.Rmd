@@ -1,5 +1,5 @@
 ---
-title: "Cash Flow Analysis 2"
+title: "Cash Flow Analysis"
 author: "Act. Bernardo Mondragon Brozon"
 date: "January 16, 2019"
 output:
@@ -26,13 +26,13 @@ library(grid)
 
 ```{r economical assumptions}
 t <- 10
-y <- 0.08
+y <- 0.10
 r <- -0.02
 ```
 
 \section{Assumptions}
 
-The cash flow analysis will consist of computing the present value of the future revenue of all projects that the company will generate in the following $`r t`$ years withx   the following assumptions:
+The cash flow analysis will consist of computing the present value of the future revenue of all projects that the company will generate in the following $`r t`$ years making the following assumptions:
 
 \begin{itemize}
 \item Risk free annual effective interest rate of Mexican economy: `r y`.
@@ -44,12 +44,12 @@ The company will work on $5$ types of projects at the same time:
 \begin{enumerate}
 \item Landing pages,
 \item Small projects,
-\item Medium projects,
-\item Large projects, and
+\item Large projects,
+\item Enterprice projects, and
 \item Inhouse projects.
 \end{enumerate}
 
-Each type of project will arrive to the company according a Poisson point process with a given ratio $\lambda$ per year.
+Each type of project will arrive to the company according to a Poisson point process with a given ratio $\lambda$ per year. In other words, the company will arrange contracts with frequency in such a way that it will have development start points randomly distributed in the timeline with a given average. For example, we will consider that the company will develop an average of $\lambda=24$ landing pages in a year (two each month). We will make these kind of assumptions for each type of project the company wants to develop and the average of contracts in a year will depend on the size of the project. 
 
 ```{r functions}
 getProjectPresentValue <- function(
@@ -114,7 +114,7 @@ getProjectPresentValue <- function(
       positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       for (l in 1:months) {
         monthly.payment.date <- arrival.date + months(l)
-        entry <- list(monthly.payment.date, monthly.payment, TRUE, "During development monthly payment")
+        entry <- list(monthly.payment.date, monthly.payment, TRUE, "Monthly charge")
         positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       }
       end.date <- arrival.date + months(months)
@@ -155,7 +155,8 @@ getProjectPresentValue <- function(
   arrivals.plot <- ggplot(data=arrivals.df, aes(x=as_datetime(arrivals.df$Date), y=c(0))) + 
     ylim(c(0,0)) +
     labs(title="Project arrivals", x="Time", y="") +
-    theme(aspect.ratio=0.1, 
+    theme(
+      #aspect.ratio=0.1, 
           axis.title.y=element_blank(),
           axis.text.y=element_blank(),
           axis.ticks.y=element_blank()) +
@@ -284,7 +285,7 @@ getInhouseProjectPresentValue <- function(
   advance.charge.rate=1 # Percentage of the final price that is paid at the begining of the project
   during.development.charge.rate=0 # Percentage of the final price that is paid during the development of the project
   final.charge.rate=0 # Percentage of the final price that is paid at the end of the development of the project
-  monthly.rent.rate=0 
+  monthly.rent.rate=0.025 
 value.landings <- getProjectPresentValue(
   t=10, # Lifetime of the company
   # Mexican economy
@@ -300,7 +301,7 @@ value.landings <- getProjectPresentValue(
   advance.charge.rate=1, # Percentage of the final price that is paid at the begining of the project
   during.development.charge.rate=0, # Percentage of the final price that is paid during the development of the project
   final.charge.rate=0, # Percentage of the final price that is paid at the end of the development of the project
-  monthly.rent.rate=0 # Percentaje of the price of the project to be charged monthly for project maintenance
+  monthly.rent.rate=0.025 # Percentaje of the price of the project to be charged monthly for project maintenance
 )
 ```
 
@@ -308,10 +309,23 @@ Landing pages will arrive to the company with a ratio of $`r lambda.po`$ per yea
 
 \begin{itemize}
 \item The price of a landing page will be $\$`r average.price`.00$ MNX in average with a standar deviation of $\$`r sd.price`.00$ MNX.
-\item The price of a landing page will be $\$`r format(average.price, scientific=FALSE)`.00$ MNX in average with a standar deviation of $\$`r sd.price`.00$ MNX.
 \item The average development time of a landing page will be $`r average.development.months`$ month.
 \item $`r advance.charge.rate`\times 100$ percent of the project will be charged in advance.
 \end{itemize}
+
+The positive cash flows that the company will obtain during the following $`r t`$ years due to lading pages development will look similar to the following graph:
+
+```{r landings cash flows graph, fig.align = "center", fig.height = 1}
+value.landings[[3]]
+```
+
+Project arrivals to the company will look like the following graph:
+
+```{r landings arrivals graph, fig.align = "center", fig.height = 1}
+value.landings[[4]]
+```
+
+Given the previous future cash flows, the present value of lading pages development revenues is worth $\$`r `.00$ MNX.
 
 \section{Small projects}
 
@@ -362,6 +376,20 @@ Small projects will arrive to the company with a ratio of $`r lambda.po`$ per ye
 \item $`r monthly.rent.rate`\times 100$ percent of the total price will be charged monthly for project maintenance.
 \end{itemize}
 
+The positive cash flows that the company will obtain during the following $`r t`$ years due to small projects development will look similar to the following graph:
+
+```{r small projects cash flows graph}
+value.small.projects[[3]]
+```
+
+Project arrivals to the company will look like the following graph:
+
+```{r small projects arrivals graph}
+value.small.projects[[4]]
+```
+
+Given the previous future cash flows, the present value of small projects development revenues is worth $\$`r `.00$ MNX.
+
 \section{Large projects}
 
 ```{r large projects assumptions}
@@ -404,12 +432,26 @@ Large projects will arrive to the company with a ratio of $`r lambda.po`$ per ye
 
 \begin{itemize}
 \item The price of a large project will be $\$`r average.price`.00$ MNX in average with a standar deviation of $\$`r sd.price`.00$ MNX .
-\item The average development time of a large project will be $`r average.development.months`$.
+\item The average development time of a large project will be $`r average.development.months`$ months.
 \item $`r advance.charge.rate`\times 100$ percent of the project will be charged in advance.
 \item $`r during.development.charge.rate`\times 100$ percent of the project will be charged monthly during the development.
 \item $`r final.charge.rate`\times 100$ percent of the project will be charged when the project is finished.
 \item $`r monthly.rent.rate`\times 100$ percent of the total price will be charged monthly for project maintenance.
 \end{itemize}
+
+The positive cash flows that the company will obtain during the following $`r t`$ years due to large projects development will look similar to the following graph:
+
+```{r large projects cash flows graph}
+value.large.projects[[3]]
+```
+
+Project arrivals to the company will look like the following graph:
+
+```{r large projects arrivals graph}
+value.large.projects[[4]]
+```
+
+Given the previous future cash flows, the present value of large projects development revenues is worth $\$`r `.00$ MNX.
 
 \section{Enterprise projects}
 
@@ -453,12 +495,26 @@ Enterprice projects will arrive to the company with a ratio of $`r lambda.po`$ p
 
 \begin{itemize}
 \item The price of an enterprice project will be $\$`r average.price`.00$ MNX in average with a standar deviation of $\$`r sd.price`.00$ MNX.
-\item The average development time of an enterprice project will be $`r average.development.months`$.
+\item The average development time of an enterprice project will be $`r average.development.months`$ months.
 \item $`r advance.charge.rate`\times 100$ percent of the project will be charged in advance.
 \item $`r during.development.charge.rate`\times 100$ percent of the project will be charged monthly during the development.
 \item $`r final.charge.rate`\times 100$ percent of the project will be charged when the project is finished.
 \item $`r monthly.rent.rate`\times 100$ percent of the total price will be charged monthly for project maintenance.
 \end{itemize}
+
+The positive cash flows that the company will obtain during the following $`r t`$ years due to enterprice projects development will look similar to the following graph:
+
+```{r enterprice projects cash flows graph}
+value.enterprice.projects[[3]]
+```
+
+Project arrivals to the company will look like the following graph:
+
+```{r enterprice projects arrivals graph}
+value.enterprice.projects[[4]]
+```
+
+Given the previous future cash flows, the present value of enterprice projects development revenues is worth $\$`r `.00$ MNX.
 
 \section{Inhouse projects}
 
@@ -494,6 +550,20 @@ Inhouse projects will arrive to the company with a ratio of $`r lambda.po`$ per 
 \item The average development time of a project will be $`r average.development.months`$. months. 
 \item The revenue generated by an inhouse project will be $\$`r average.monthly.rent`.00$ MNX in average with an standard deviation of $\$`r sd.monthly.rent`.00$ MNX.
 \end{itemize}
+
+The positive cash flows that the company will obtain during the following $`r t`$ years due to inhouse projects development will look similar to the following graph:
+
+```{r inhouse projects cash flows graph}
+value.inhouse.projects[[3]]
+```
+
+Project arrivals to the company will look like the following graph:
+
+```{r inhouse projects arrivals graph}
+value.inhouse.projects[[4]]
+```
+
+Given the previous future cash flows, the present value of inhouse projects development revenues is worth $\$`r `.00$ MNX.
 
 \section{Valuation}
 
