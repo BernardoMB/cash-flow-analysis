@@ -10,6 +10,7 @@
 # Jose Mijares
 
 library(ggplot2)
+library(lubridate)
 
 # ---- Functions ----
 
@@ -30,12 +31,6 @@ getProjectPresentValue <- function(
   final.charge.rate, # Percentage of the final price that is paid at the end of the development of the project
   monthly.rent.rate # Percentaje of the price of the project to be charged monthly for project maintenance
 ) {
-  positive.flows <- list()
-  negative.flows <- list()
-  
-  positive.flows.df <- data.frame()
-  negative.flows.df <- data.frame()
-  
   # Calculate monthly effective interest rate
   y12 <- (1+y)^(1/12)-1
   
@@ -43,6 +38,8 @@ getProjectPresentValue <- function(
   arrival.time <- 0
   interarrivals <- c()
   arrivals <- c()
+  positive.flows <- data.frame()
+  negative.flows <- data.frame()
   adjusted.prices <- c()
   present.values <- c()
   # Simulate projects arrivals
@@ -75,31 +72,23 @@ getProjectPresentValue <- function(
       now <- as_datetime(Sys.time())
       arrival.time.in.seconds <- as.numeric(duration(arrival.time, unit="years"))
       arrival.date <- now + seconds(arrival.time.in.seconds)
-      index <- length(positive.flows) + 1
       entry <- list(arrival.date, advance.charge, TRUE, "Advance charge")
-      positive.flows[[index]] <- entry
-      positive.flows.df <- rbind(positive.flows.df, entry, stringsAsFactors=FALSE)
+      positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       for (l in 1:months) {
         monthly.payment.date <- arrival.date + months(l)
-        index <- length(positive.flows) + 1
         entry <- list(monthly.payment.date, monthly.payment, TRUE, "During development monthly payment")
-        positive.flows[[index]] <- entry
-        positive.flows.df <- rbind(positive.flows.df, entry, stringsAsFactors=FALSE)
+        positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       }
       end.date <- arrival.date + months(months)
-      index <- length(positive.flows) + 1
       entry <- list(end.date, final.charge, TRUE, "Final charge")
-      positive.flows[[index]] <- entry
-      positive.flows.df <- rbind(positive.flows.df, entry, stringsAsFactors=FALSE)
+      positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       for (s in 1:months.to.end) {
         monthly.rent.payment.date <- arrival.date + months(months + s)
-        index <- length(positive.flows) + 1
         entry <-list(monthly.rent.payment.date, monthly.rent, TRUE, "Monthly rent payment")
-        positive.flows[[index]] <- entry
-        positive.flows.df <- rbind(positive.flows.df, entry, stringsAsFactors=FALSE)
+        positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       }
-      names(positive.flows.df) <- c("Date","Amount","Income","Concept")
-      #names(negative.flows.df) <- c("Date","Amount","Income","Concept")
+      names(positive.flows) <- c("Date","Amount","Income","Concept")
+      #names(negative.flows) <- c("Date","Amount","Income","Concept")
       # Compute present values based on payment scheme
       discount.factor <- (1/(1+y))^arrival.time
       fractional.annuity <- ((1-(1/(1+y12))^months)/y12)
@@ -113,16 +102,37 @@ getProjectPresentValue <- function(
     }
   }
   
-  ggplot(data=positive.flows.df, aes(x=as_datetime(positive.flows.df$Date), y=positive.flows.df$Amount)) +
+  revenues.plot <- ggplot(data=positive.flows, aes(x=as_datetime(positive.flows$Date), y=positive.flows$Amount)) +
     geom_point(color="blue", size=0.5) + 
-    ylim(c(0,max(positive.flows.df$Amount)+1000)) +
-    xlim(c(as_datetime(Sys.time()),max(as_datetime(positive.flows.df$Date)))) +
-    geom_hline(yintercept=mean(positive.flows.df$Amount), size=1, color="cyan") +
-    #geom_linerange(aes(x=as_datetime(positive.flows.df$Date), ymax=positive.flows.df$Amount, ymin=0), color="#00AFBB") +
-    geom_linerange(aes(x=as_datetime(positive.flows.df$Date), ymax=positive.flows.df$Amount, ymin=0, color=positive.flows.df$Concept)) +
-    labs(x="Time (years)", y="Money")
+    ylim(c(0,max(positive.flows$Amount)+1000)) +
+    xlim(c(as_datetime(Sys.time()),max(as_datetime(positive.flows$Date)))) +
+    #geom_hline(yintercept=mean(positive.flows$Amount), size=1, color="cyan") +
+    #geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0), color="#00AFBB") +
+    geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0, color=positive.flows$Concept)) +
+    labs(title="Revenues", x="Time (years)", y="Income") +
+    guides(color=guide_legend(title="Types of income"))
   
-  sum(present.values)
+  arrivals.df <- positive.flows[positive.flows$Concept %in% c("Advance charge"),]
+  
+  arrivals.plot <- ggplot(data=arrivals.df, aes(x=as_datetime(arrivals.df$Date), y=c(0))) + 
+    ylim(c(0,0)) +
+    labs(title="Project arrivals", x="Time", y="") +
+    theme(aspect.ratio=0.1, 
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank()) +
+    geom_hline(yintercept=0, size=0.5, color="cyan") +
+    geom_point(shape=4, size=2) 
+  
+  projects.present.value <- sum(present.values)
+  
+  return(list(
+    positive.flows,
+    negative.flows,
+    revenues.plot,
+    arrivals.plot,
+    projects.present.value
+  ))
 }
 
 getInhouseProjectPresentValue <- function(
@@ -137,12 +147,6 @@ getInhouseProjectPresentValue <- function(
   average.monthly.rent, # Expected value of the monthly rent that the project will generate
   sd.monthly.rent # Standar deviation of the monthly rent that the project will generate
 ) {
-  positive.flows <- list()
-  negative.flows <- list()
-  
-  positive.flows.df <- data.frame()
-  negative.flows.df <- data.frame()
-  
   # Calculate monthly effective interest rate
   y12 <- (1+y)^(1/12)-1
   
@@ -151,7 +155,10 @@ getInhouseProjectPresentValue <- function(
   interarrivals <- c()
   arrivals <- c()
   adjusted.prices <- c()
+  positive.flows <- data.frame()
+  negative.flows <- data.frame()
   present.values <- c()
+  arrival.dates <- c()
   # Simulate projects arrivals
   while (time < t) {
     interarrival.time <- rexp(n=1, rate=lambda.po)
@@ -171,15 +178,14 @@ getInhouseProjectPresentValue <- function(
       now <- as_datetime(Sys.time())
       arrival.time.in.seconds <- as.numeric(duration(arrival.time, unit="years"))
       arrival.date <- now + seconds(arrival.time.in.seconds)
+      arrival.dates <- c(arrival.dates, arrival.date)
       for (s in 1:months.to.end) {
         monthly.rent.payment.date <- arrival.date + months(months + s)
-        index <- length(positive.flows) + 1
         entry <-list(monthly.rent.payment.date, monthly.rent, TRUE, "Monthly revenue of inhouse project")
-        positive.flows[[index]] <- entry
-        positive.flows.df <- rbind(positive.flows.df, entry, stringsAsFactors=FALSE)
+        positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       }
-      names(positive.flows.df) <- c("Date","Amount","Income","Concept")
-      #names(negative.flows.df) <- c("Date","Amount","Income","Concept")
+      names(positive.flows) <- c("Date","Amount","Income","Concept")
+      #names(negative.flows) <- c("Date","Amount","Income","Concept")
       # Compute present values
       discount.factor <- (1/(1+y))^arrival.time
       monthly.rents.present.value <- discount.factor*monthly.rent*((1-(1/(1+y12))^(months.to.end))/y12)
@@ -188,16 +194,38 @@ getInhouseProjectPresentValue <- function(
     }
   }
   
-  ggplot(data=positive.flows.df, aes(x=as_datetime(positive.flows.df$Date), y=positive.flows.df$Amount)) +
+  revenues.plot <- ggplot(data=positive.flows, aes(x=as_datetime(positive.flows$Date), y=positive.flows$Amount)) +
     geom_point(color="blue", size=0.5) + 
-    ylim(c(0,max(positive.flows.df$Amount)+1000)) +
-    xlim(c(as_datetime(Sys.time()),max(as_datetime(positive.flows.df$Date)))) +
-    geom_hline(yintercept=mean(positive.flows.df$Amount), size=1, color="cyan") +
-    #geom_linerange(aes(x=as_datetime(positive.flows.df$Date), ymax=positive.flows.df$Amount, ymin=0), color="#00AFBB") +
-    geom_linerange(aes(x=as_datetime(positive.flows.df$Date), ymax=positive.flows.df$Amount, ymin=0, color=positive.flows.df$Concept)) +
-    labs(x="Time (years)", y="Money")
+    ylim(c(0,max(positive.flows$Amount)+1000)) +
+    xlim(c(as_datetime(Sys.time()),max(as_datetime(positive.flows$Date)))) +
+    #geom_hline(yintercept=mean(positive.flows$Amount), size=1, color="cyan") +
+    #geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0), color="#00AFBB") +
+    geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0, color=positive.flows$Concept)) +
+    labs(title="Revenues", x="Time (years)", y="Income") +
+    guides(color=guide_legend(title="Types of income"))
   
-  sum(present.values)
+  arrivals.df <- data.frame(arrival.dates)
+  names(arrivals.df) <- c("Date")
+  
+  arrivals.plot <- ggplot(data=arrivals.df, aes(x=as_datetime(arrivals.df$Date), y=c(0))) + 
+    ylim(c(0,0)) +
+    labs(title="Project arrivals", x="Time", y="") +
+    theme(aspect.ratio=0.1, 
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank()) +
+    geom_hline(yintercept=0, size=0.5, color="cyan") +
+    geom_point(shape=4, size=2) 
+  
+  projects.present.value <- sum(present.values)
+  
+  return(list(
+    positive.flows,
+    negative.flows,
+    revenues.plot,
+    arrivals.plot,
+    projects.present.value
+  ))
 }
 
 # ---- Simulation ----

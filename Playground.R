@@ -1,5 +1,7 @@
 library(lubridate)
 library(ggplot2)
+library(gridExtra)
+library(grid)
 
 # ---- Simulate cash flows from developing a type of project ----
 
@@ -110,15 +112,33 @@ sum(present.values)
 # }
 # mean(vals)
 
-ggplot(data=positive.flows.df, aes(x=as_datetime(positive.flows.df$Date), y=positive.flows.df$Amount)) +
+a <- ggplot(data=positive.flows.df, aes(x=as_datetime(positive.flows.df$Date), y=positive.flows.df$Amount)) +
   geom_point(color="blue", size=0.5) + 
   ylim(c(0,max(positive.flows.df$Amount)+1000)) +
   xlim(c(as_datetime(Sys.time()),max(as_datetime(positive.flows.df$Date)))) +
-  geom_hline(yintercept=mean(positive.flows.df$Amount), size=1, color="cyan") +
-  #geom_linerange(aes(x=as_datetime(positive.flows.df$Date), ymax=positive.flows.df$Amount, ymin=0), color="#00AFBB") +
+  #geom_hline(yintercept=mean(positive.flows$Amount), size=1, color="cyan") +
+  #geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0), color="#00AFBB") +
   geom_linerange(aes(x=as_datetime(positive.flows.df$Date), ymax=positive.flows.df$Amount, ymin=0, color=positive.flows.df$Concept)) +
-  labs(x="Time (years)", y="Money")
+  labs(title="Revenues", x="Time (years)", y="Income") +
+  guides(color=guide_legend(title="Types of income"))
 
+arrivals.df <- positive.flows.df[positive.flows.df$Concept %in% c("Advance charge"),]
+
+b <- ggplot(data=arrivals.df, aes(x=as_datetime(arrivals.df$Date), y=c(0))) + 
+  ylim(c(0,0)) +
+  labs(title="Project arrivals", x="Time", y="") +
+  theme(aspect.ratio=0.1, 
+        axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()) +
+  geom_hline(yintercept=0, size=0.5, color="cyan") +
+  geom_point(shape=4, size=2) 
+
+grid.arrange(
+  grobs = list(a,b),
+  layout_matrix = rbind(c(1),
+                        c(2))
+)
 
 # ---- Simulate cash flows from developing inhouse projects ----
 
@@ -189,9 +209,11 @@ ggplot(data=positive.flows.df, aes(x=as_datetime(positive.flows.df$Date), y=posi
   geom_point(color="blue", size=0.5) + 
   ylim(c(0,max(positive.flows.df$Amount)+1000)) +
   xlim(c(as_datetime(Sys.time()),max(as_datetime(positive.flows.df$Date)))) +
-  geom_hline(yintercept=mean(positive.flows.df$Amount), size=1, color="cyan") +
+  #geom_hline(yintercept=mean(positive.flows$Amount), size=1, color="cyan") +
+  #geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0), color="#00AFBB") +
   geom_linerange(aes(x=as_datetime(positive.flows.df$Date), ymax=positive.flows.df$Amount, ymin=0, color=positive.flows.df$Concept)) +
-  labs(x="Time (years)", y="Money")
+  labs(title="Revenues", x="Time (years)", y="Income") +
+  guides(color=guide_legend(title="Types of income"))
 
 # ---- Simulate cash flows of a single project ----
 
@@ -296,8 +318,9 @@ if (time < t) {
 ggplot(data=positive.flows.df, aes(x=as_datetime(positive.flows.df$Date), y=positive.flows.df$Amount)) +
   geom_point(color="blue", size=0.5) + 
   ylim(c(0,max(positive.flows.df$Amount)+1000)) +
-  #xlim(c(as_datetime(Sys.time()),as_datetime(Sys.time()) + years(10))) +
   xlim(c(as_datetime(Sys.time()),max(as_datetime(positive.flows.df$Date)))) +
-  #geom_hline(yintercept=mean(positive.flows.df$Amount), size=1, color="cyan") +
-  geom_linerange(aes(x=as_datetime(positive.flows.df$Date), ymax=positive.flows.df$Amount, ymin=0), color="#00AFBB") +
-  labs(x="Time (years)", y="Money")
+  #geom_hline(yintercept=mean(positive.flows$Amount), size=1, color="cyan") +
+  #geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0), color="#00AFBB") +
+  geom_linerange(aes(x=as_datetime(positive.flows.df$Date), ymax=positive.flows.df$Amount, ymin=0, color=positive.flows.df$Concept)) +
+  labs(title="Revenues", x="Time (years)", y="Income") +
+  guides(color=guide_legend(title="Types of income"))
