@@ -220,7 +220,7 @@ getInhouseProjectPresentValue <- function(
       arrival.dates <- c(arrival.dates, arrival.date)
       for (s in 1:months.to.end) {
         monthly.rent.payment.date <- arrival.date + months(months + s)
-        entry <-list(monthly.rent.payment.date, monthly.rent, TRUE, "Monthly revenue of inhouse project")
+        entry <-list(monthly.rent.payment.date, monthly.rent, TRUE, "Monthly revenue")
         positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       }
       names(positive.flows) <- c("Date","Amount","Income","Concept")
@@ -249,7 +249,8 @@ getInhouseProjectPresentValue <- function(
   arrivals.plot <- ggplot(data=arrivals.df, aes(x=as_datetime(arrivals.df$Date), y=c(0))) + 
     ylim(c(0,0)) +
     labs(title="Project arrivals", x="Time", y="") +
-    theme(aspect.ratio=0.1, 
+    theme(
+      #aspect.ratio=0.1, 
           axis.title.y=element_blank(),
           axis.text.y=element_blank(),
           axis.ticks.y=element_blank()) +
@@ -315,7 +316,7 @@ Landing pages will arrive to the company with a ratio of $`r lambda.po`$ per yea
 
 The positive cash flows that the company will obtain during the following $`r t`$ years due to lading pages development will look similar to the following graph:
 
-```{r landings cash flows graph, fig.align = "center", fig.height = 1}
+```{r landings cash flows graph, fig.align = "center"}
 value.landings[[3]]
 ```
 
@@ -378,13 +379,13 @@ Small projects will arrive to the company with a ratio of $`r lambda.po`$ per ye
 
 The positive cash flows that the company will obtain during the following $`r t`$ years due to small projects development will look similar to the following graph:
 
-```{r small projects cash flows graph}
+```{r small projects cash flows graph, fig.align = "center"}
 value.small.projects[[3]]
 ```
 
 Project arrivals to the company will look like the following graph:
 
-```{r small projects arrivals graph}
+```{r small projects arrivals graph, fig.align = "center", fig.height = 1}
 value.small.projects[[4]]
 ```
 
@@ -441,13 +442,13 @@ Large projects will arrive to the company with a ratio of $`r lambda.po`$ per ye
 
 The positive cash flows that the company will obtain during the following $`r t`$ years due to large projects development will look similar to the following graph:
 
-```{r large projects cash flows graph}
+```{r large projects cash flows graph, fig.align = "center"}
 value.large.projects[[3]]
 ```
 
 Project arrivals to the company will look like the following graph:
 
-```{r large projects arrivals graph}
+```{r large projects arrivals graph, fig.align = "center", fig.height = 1}
 value.large.projects[[4]]
 ```
 
@@ -504,13 +505,13 @@ Enterprice projects will arrive to the company with a ratio of $`r lambda.po`$ p
 
 The positive cash flows that the company will obtain during the following $`r t`$ years due to enterprice projects development will look similar to the following graph:
 
-```{r enterprice projects cash flows graph}
+```{r enterprice projects cash flows graph, fig.align = "center"}
 value.enterprice.projects[[3]]
 ```
 
 Project arrivals to the company will look like the following graph:
 
-```{r enterprice projects arrivals graph}
+```{r enterprice projects arrivals graph, fig.align = "center", fig.height = 1}
 value.enterprice.projects[[4]]
 ```
 
@@ -553,13 +554,13 @@ Inhouse projects will arrive to the company with a ratio of $`r lambda.po`$ per 
 
 The positive cash flows that the company will obtain during the following $`r t`$ years due to inhouse projects development will look similar to the following graph:
 
-```{r inhouse projects cash flows graph}
+```{r inhouse projects cash flows graph, fig.align = "center"}
 value.inhouse.projects[[3]]
 ```
 
 Project arrivals to the company will look like the following graph:
 
-```{r inhouse projects arrivals graph}
+```{r inhouse projects arrivals graph, fig.align = "center", fig.height = 1}
 value.inhouse.projects[[4]]
 ```
 
