@@ -374,9 +374,16 @@ if (time < t) {
   present.values <- c(present.values, present.value)
 }
 
-break.vec <- c(seq(from=floor_date(as_date(Sys.time()), unit="month"),
-                   to=ceiling_date(max(as_date(positive.flows.df$Date)), unit="month"),
-                   by="month"))
+ggplot(data=positive.flows.df, aes(x=as_date(positive.flows.df$Date), y=positive.flows.df$Amount)) +
+  geom_point(color="blue", size=0.5) + 
+  ylim(c(0,max(positive.flows.df$Amount)+1000)) +
+  xlim(c(as_date(Sys.time()),max(as_date(positive.flows.df$Date)))) +
+  #geom_hline(yintercept=mean(positive.flows$Amount), size=1, color="cyan") +
+  #geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0), color="#00AFBB") +
+  geom_linerange(aes(x=as_date(positive.flows.df$Date), ymax=positive.flows.df$Amount, ymin=0, color=positive.flows.df$Concept)) +
+  labs(title="Revenues", x="Time (years)", y="Income") +
+  guides(color=guide_legend(title="Types of income")) +
+  scale_x_date(date_minor_breaks = "1 day")
 
 ggplot(data=positive.flows.df, aes(x=as_date(positive.flows.df$Date), y=positive.flows.df$Amount)) +
   geom_point(color="blue", size=0.5) + 
@@ -387,7 +394,7 @@ ggplot(data=positive.flows.df, aes(x=as_date(positive.flows.df$Date), y=positive
   geom_linerange(aes(x=as_date(positive.flows.df$Date), ymax=positive.flows.df$Amount, ymin=0, color=positive.flows.df$Concept)) +
   labs(title="Revenues", x="Time (years)", y="Income") +
   guides(color=guide_legend(title="Types of income")) +
-  scale_x_date(breaks = break.vec, date_minor_breaks="1 day", limits=c(as_date(Sys.time()),NA)) +
+  scale_x_date(breaks = break.vec, limits=c(as_date(Sys.time()),NA)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
