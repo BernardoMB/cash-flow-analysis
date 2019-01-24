@@ -11,13 +11,6 @@ knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
 # Avoid scientific notation
 options(scipen = 999)
-inline_hook <- function(x) {
-  if (is.numeric(x)) {
-    format(x, digits = 2)
-  } else x
-}
-knitr::knit_hooks$set(inline = inline_hook)
-# Source libraries
 library(lubridate)
 library(ggplot2)
 library(gridExtra)
@@ -25,7 +18,7 @@ library(grid)
 ```
 
 ```{r economical assumptions}
-t <- 10
+t <- 5
 y <- 0.10
 r <- -0.02
 ```
@@ -42,11 +35,11 @@ The cash flow analysis will consist of computing the present value of the future
 The company will work on $5$ types of projects at the same time:
 
 \begin{enumerate}
-\item Landing pages,
-\item Small projects,
-\item Large projects,
-\item Enterprice projects, and
-\item Inhouse projects.
+\item Landing pages (only images, company description, contact, almost no functionality),
+\item Small projects (basic functionality, manage users, blog, order, e-comerce),
+\item Large projects (adding complex functionality, complex back-end computations),
+\item Enterprice projects (thousands of users, complex back-end operations), and
+\item Inhouse projects (EVA like projects).
 \end{enumerate}
 
 Each type of project will arrive to the company according to a Poisson point process with a given ratio $\lambda$ per year. In other words, the company will arrange contracts with frequency in such a way that it will have development start points randomly distributed in the timeline with a given average. For example, we will consider that the company will develop an average of $\lambda=24$ landing pages in a year (two each month). We will make these kind of assumptions for each type of project the company wants to develop and the average of contracts in a year will depend on the size of the project. 
@@ -101,9 +94,9 @@ getProjectPresentValue <- function(
       monthly.rent <- adjusted.price*monthly.rent.rate
       # Simulate development time in months
       development.time <- rlnorm(1, meanlog=0, sdlog=0.25)*average.development.months
-      months <- ceiling(development.time)
-      monthly.payment <- during.development.charge/months
-      time.to.end <- t - (arrival.time + months/12)
+      development.months <- ceiling(development.time)
+      monthly.payment <- during.development.charge/development.months
+      time.to.end <- t - (arrival.time + development.months/12)
       time.to.end <- max(0, time.to.end)
       months.to.end <- ceiling(time.to.end*12)
       # Populate cash flows collections
@@ -112,16 +105,34 @@ getProjectPresentValue <- function(
       arrival.date <- now + seconds(arrival.time.in.seconds)
       entry <- list(arrival.date, advance.charge, TRUE, "Advance charge")
       positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
-      for (l in 1:months) {
+      for (l in 1:development.months) {
         monthly.payment.date <- arrival.date + months(l)
+        if (is.na(monthly.payment.date)) {
+          monthly.payment.date <- arrival.date - days(3) + months(l)
+          if (is.na(monthly.payment.date)) {
+            print("No mames no puede ser")
+          }
+        }
         entry <- list(monthly.payment.date, monthly.payment, TRUE, "Monthly charge")
         positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       }
-      end.date <- arrival.date + months(months)
+      end.date <- arrival.date + months(development.months)
+      if (is.na(end.date)) {
+        end.date <- arrival.date - days(3) + months(development.months)
+        if (is.na(end.date)) {
+          print("No mames no puede ser")
+        }
+      }
       entry <- list(end.date, final.charge, TRUE, "Final charge")
       positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       for (s in 1:months.to.end) {
-        monthly.rent.payment.date <- arrival.date + months(months + s)
+        monthly.rent.payment.date <- arrival.date + months(development.months + s)
+        if (is.na(monthly.rent.payment.date)) {
+          monthly.rent.payment.date <- arrival.date - days(3) + months(development.months + s)
+          if (is.na(monthly.rent.payment.date)) {
+            print("No mames no puede ser")
+          }
+        }
         entry <-list(monthly.rent.payment.date, monthly.rent, TRUE, "Monthly rent payment")
         positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       }
@@ -129,7 +140,7 @@ getProjectPresentValue <- function(
       #names(negative.flows) <- c("Date","Amount","Income","Concept")
       # Compute present values based on payment scheme
       discount.factor <- (1/(1+y))^arrival.time
-      fractional.annuity <- ((1-(1/(1+y12))^months)/y12)
+      fractional.annuity <- ((1-(1/(1+y12))^development.months)/y12)
       advance.charge.present.value <- discount.factor*advance.charge
       monthly.charges.present.value <- discount.factor*monthly.payment*fractional.annuity
       final.payment.present.value <- discount.factor*((1/(1+y))^(development.time/12))*final.charge
@@ -151,7 +162,6 @@ getProjectPresentValue <- function(
     guides(color=guide_legend(title="Types of income"))
   
   arrivals.df <- positive.flows[positive.flows$Concept %in% c("Advance charge"),]
-  
   arrivals.plot <- ggplot(data=arrivals.df, aes(x=as_datetime(arrivals.df$Date), y=c(0))) + 
     ylim(c(0,0)) +
     labs(title="Project arrivals", x="Time", y="") +
@@ -208,8 +218,9 @@ getInhouseProjectPresentValue <- function(
       arrivals <- c(arrivals, arrival.time)
       # Get development time
       development.time <- rlnorm(1, meanlog=0, sdlog=0.25)*average.development.months
-      months <- ceiling(development.time)
-      time.to.end <- t - arrival.time - months/12
+      development.months <- ceiling(development.time)
+      time.to.end <- t - (arrival.time + development.months/12)
+      time.to.end <- max(0, time.to.end)
       months.to.end <- ceiling(time.to.end*12)
       monthly.rent <- rnorm(1, mean=average.monthly.rent, sd=sd.monthly.rent)
       monthly.rent <- max(0, monthly.rent)
@@ -219,7 +230,13 @@ getInhouseProjectPresentValue <- function(
       arrival.date <- now + seconds(arrival.time.in.seconds)
       arrival.dates <- c(arrival.dates, arrival.date)
       for (s in 1:months.to.end) {
-        monthly.rent.payment.date <- arrival.date + months(months + s)
+        monthly.rent.payment.date <- arrival.date + months(development.months + s)
+        if (is.na(monthly.rent.payment.date)) {
+          monthly.rent.payment.date <- arrival.date - days(3) + months(development.months + s)
+          if (is.na(monthly.rent.payment.date)) {
+            print("No mames no puede ser")
+          }
+        }
         entry <-list(monthly.rent.payment.date, monthly.rent, TRUE, "Monthly revenue")
         positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       }
@@ -272,10 +289,10 @@ getInhouseProjectPresentValue <- function(
 \section{Landing pages}
 
 ```{r lading pages assumptions}
-  t=10 # Lifetime of the company
+  t=t # Lifetime of the company
   # Mexican economy
-  y=0.1 # Annual interest rate
-  r=-0.02 # Inflation rate
+  y=y # Annual interest rate
+  r=r # Inflation rate
   # Princing of the project
   average.price=10000 # Expected price of the project
   sd.price=2000 # Standar deviation of the price of the project
@@ -288,7 +305,7 @@ getInhouseProjectPresentValue <- function(
   final.charge.rate=0 # Percentage of the final price that is paid at the end of the development of the project
   monthly.rent.rate=0.025 
 value.landings <- getProjectPresentValue(
-  t=10, # Lifetime of the company
+  t=t, # Lifetime of the company
   # Mexican economy
   y=0.1, # Annual interest rate
   r=-0.02, # Inflation rate
@@ -309,7 +326,7 @@ value.landings <- getProjectPresentValue(
 Landing pages will arrive to the company with a ratio of $`r lambda.po`$ per year and will consider the following assumptions:
 
 \begin{itemize}
-\item The price of a landing page will be $\$`r average.price`.00$ MNX in average with a standar deviation of $\$`r sd.price`.00$ MNX.
+\item The price of a landing page will be $\$`r average.price`$ MNX in average with a standar deviation of $\$`r sd.price`$ MNX.
 \item The average development time of a landing page will be $`r average.development.months`$ month.
 \item $`r advance.charge.rate`\times 100$ percent of the project will be charged in advance.
 \end{itemize}
@@ -324,17 +341,18 @@ Project arrivals to the company will look like the following graph:
 
 ```{r landings arrivals graph, fig.align = "center", fig.height = 1}
 value.landings[[4]]
+landigs.projects.value <- value.landings[[5]]
 ```
 
-Given the previous future cash flows, the present value of lading pages development revenues is worth $\$`r `.00$ MNX.
+Given the previous future cash flows, the present value of lading pages development revenues is worth $\$`r landigs.projects.value`$ MNX.
 
 \section{Small projects}
 
 ```{r small projects assumptions}
-  t=10 # Lifetime of the company
+  t=t # Lifetime of the company
   # Mexican economy
-  y=0.1 # Annual interest rate
-  r=-0.02 # Inflation rate
+  y=y # Annual interest rate
+  r=r # Inflation rate
   # Princing of the project
   average.price=50000 # Expected price of the project
   sd.price=20000 # Standar deviation of the price of the project
@@ -369,7 +387,7 @@ value.small.projects <- getProjectPresentValue(
 Small projects will arrive to the company with a ratio of $`r lambda.po`$ per year and will consider the following assumptions:
 
 \begin{itemize}
-\item The price of a small project will be $\$`r average.price`.00$ MNX in average with a standar deviation of $\$`r sd.price`.00$ MNX.
+\item The price of a small project will be $\$`r average.price`$ MNX in average with a standar deviation of $\$`r sd.price`$ MNX.
 \item The average development time of a small project will be $`r average.development.months`$ months.
 \item $`r advance.charge.rate`\times 100$ percent of the project will be charged in advance.
 \item $`r during.development.charge.rate`\times 100$ percent of the project will be charged monthly during the development.
@@ -387,17 +405,18 @@ Project arrivals to the company will look like the following graph:
 
 ```{r small projects arrivals graph, fig.align = "center", fig.height = 1}
 value.small.projects[[4]]
+small.projects.value <- value.small.projects[[5]]
 ```
 
-Given the previous future cash flows, the present value of small projects development revenues is worth $\$`r `.00$ MNX.
+Given the previous future cash flows, the present value of small projects development revenues is worth $\$`r small.projects.value`$ MNX.
 
 \section{Large projects}
 
 ```{r large projects assumptions}
-  t=10 # Lifetime of the company
+  t=t # Lifetime of the company
   # Mexican economy
-  y=0.1 # Annual interest rate
-  r=-0.02 # Inflation rate
+  y=y # Annual interest rate
+  r=r # Inflation rate
   # Princing of the project
   average.price=200000 # Expected price of the project
   sd.price=70000 # Standar deviation of the price of the project
@@ -432,7 +451,7 @@ value.large.projects <- getProjectPresentValue(
 Large projects will arrive to the company with a ratio of $`r lambda.po`$ per year and will consider the following assumptions:
 
 \begin{itemize}
-\item The price of a large project will be $\$`r average.price`.00$ MNX in average with a standar deviation of $\$`r sd.price`.00$ MNX .
+\item The price of a large project will be $\$`r average.price`$ MNX in average with a standar deviation of $\$`r sd.price`$ MNX .
 \item The average development time of a large project will be $`r average.development.months`$ months.
 \item $`r advance.charge.rate`\times 100$ percent of the project will be charged in advance.
 \item $`r during.development.charge.rate`\times 100$ percent of the project will be charged monthly during the development.
@@ -450,17 +469,18 @@ Project arrivals to the company will look like the following graph:
 
 ```{r large projects arrivals graph, fig.align = "center", fig.height = 1}
 value.large.projects[[4]]
+large.projects.value <- value.large.projects[[5]]
 ```
 
-Given the previous future cash flows, the present value of large projects development revenues is worth $\$`r `.00$ MNX.
+Given the previous future cash flows, the present value of large projects development revenues is worth $\$`r large.projects.value`$ MNX.
 
 \section{Enterprise projects}
 
 ```{r Enterprice projects assumptions}
-  t=10 # Lifetime of the company
+  t=t # Lifetime of the company
   # Mexican economy
-  y=0.1 # Annual interest rate
-  r=-0.02 # Inflation rate
+  y=y # Annual interest rate
+  r=r # Inflation rate
   # Princing of the project
   average.price=1600000 # Expected price of the project
   sd.price=200000 # Standar deviation of the price of the project
@@ -495,7 +515,7 @@ value.enterprice.projects <- getProjectPresentValue(
 Enterprice projects will arrive to the company with a ratio of $`r lambda.po`$ per year and will consider the following assumptions:
 
 \begin{itemize}
-\item The price of an enterprice project will be $\$`r average.price`.00$ MNX in average with a standar deviation of $\$`r sd.price`.00$ MNX.
+\item The price of an enterprice project will be $\$`r average.price`$ MNX in average with a standar deviation of $\$`r sd.price`$ MNX.
 \item The average development time of an enterprice project will be $`r average.development.months`$ months.
 \item $`r advance.charge.rate`\times 100$ percent of the project will be charged in advance.
 \item $`r during.development.charge.rate`\times 100$ percent of the project will be charged monthly during the development.
@@ -513,17 +533,18 @@ Project arrivals to the company will look like the following graph:
 
 ```{r enterprice projects arrivals graph, fig.align = "center", fig.height = 1}
 value.enterprice.projects[[4]]
+enterprice.projects.value <- value.enterprice.projects[[5]]
 ```
 
-Given the previous future cash flows, the present value of enterprice projects development revenues is worth $\$`r `.00$ MNX.
+Given the previous future cash flows, the present value of enterprice projects development revenues is worth $\$`r enterprice.projects.value`$ MNX.
 
 \section{Inhouse projects}
 
 ```{r inhouse projects assumptions}
-  t=10 # Lifetime of the company
+  t=t # Lifetime of the company
   # Mexican economy
-  y=0.1 # Annual interest rate
-  r=-0.02 # Inflation rate
+  y=y # Annual interest rate
+  r=r # Inflation rate
   # Project details
   lambda.po=5 # Expected number of projects developed in a year
   average.development.months=14 # Expected development time of the project measured in months
@@ -549,7 +570,7 @@ Inhouse projects will arrive to the company with a ratio of $`r lambda.po`$ per 
 
 \begin{itemize}
 \item The average development time of a project will be $`r average.development.months`$. months. 
-\item The revenue generated by an inhouse project will be $\$`r average.monthly.rent`.00$ MNX in average with an standard deviation of $\$`r sd.monthly.rent`.00$ MNX.
+\item The revenue generated by an inhouse project will be $\$`r average.monthly.rent`$ MNX in average with an standard deviation of $\$`r sd.monthly.rent`$ MNX.
 \end{itemize}
 
 The positive cash flows that the company will obtain during the following $`r t`$ years due to inhouse projects development will look similar to the following graph:
@@ -562,10 +583,15 @@ Project arrivals to the company will look like the following graph:
 
 ```{r inhouse projects arrivals graph, fig.align = "center", fig.height = 1}
 value.inhouse.projects[[4]]
+inhouse.projects.value <- value.inhouse.projects[[5]]
 ```
 
-Given the previous future cash flows, the present value of inhouse projects development revenues is worth $\$`r `.00$ MNX.
+Given the previous future cash flows, the present value of inhouse projects development revenues is worth $\$`r inhouse.projects.value`$ MNX.
 
 \section{Valuation}
 
-Considering the previous assumptions the company's value is $\$676,060,485.00$ MNX.
+```{r net worth}
+net.worth <- landigs.projects.value + small.projects.value + large.projects.value + enterprice.projects.value + inhouse.projects.value
+```
+
+Summing up the net present value of all company's projects the net worth of the company es given by  $\$`r net.worth`$ MNX.
