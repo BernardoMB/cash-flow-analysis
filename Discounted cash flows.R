@@ -229,7 +229,7 @@ getInhouseProjectPresentValue <- function(
             print("No mames no puede ser")
           }
         }
-        entry <-list(monthly.rent.payment.date, monthly.rent, TRUE, "Monthly revenue of inhouse project")
+        entry <- list(monthly.rent.payment.date, monthly.rent, TRUE, "Monthly revenue of inhouse project")
         positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
       }
       names(positive.flows) <- c("Date","Amount","Income","Concept")
@@ -276,7 +276,10 @@ getInhouseProjectPresentValue <- function(
     then <- now + years(count-1)
     year <- lubridate::year(as_datetime(then))
     df <- positive.flows[year(as_datetime(positive.flows$Date)) == year,]
-    if (length(df[,1]) == 0) {
+    # if (length(df[,1]) == 0) {
+    #   break
+    # }
+    if (year > lubridate::year(now + years(t))) {
       break
     }
     total.rent.payments <- sum(df[df$Concept %in% c("Monthly rent payment"),]$Amount)
@@ -285,7 +288,7 @@ getInhouseProjectPresentValue <- function(
     names(revenues) <- c("Year","Rent")
     count <- count + 1
   }
-  write.csv(revenues, file=paste("InhouseProjects","AnnualRevenueData.csv",sep=""))
+  write.csv(revenues, file=paste("05InhouseProjects","AnnualRevenueData.csv",sep=""))
   
   return(list(
     positive.flows,
@@ -309,7 +312,7 @@ value.landings <- getProjectPresentValue(
   y=y, # Annual interest rate
   r=r, # Inflation rate
   # Princing of the project
-  project.type="Landings", # Project type
+  project.type="01Landings", # Project type
   average.price=10000, # Expected price of the project
   sd.price=2000, # Standar deviation of the price of the project
   minimum.price=7000, # Minimum price accepted for the project
@@ -328,7 +331,7 @@ value.small.projects <- getProjectPresentValue(
   y=y, # Annual interest rate
   r=r, # Inflation rate
   # Princing of the project
-  project.type="SmallProjects", # Project type
+  project.type="02SmallProjects", # Project type
   average.price=50000, # Expected price of the project
   sd.price=20000, # Standar deviation of the price of the project
   minimum.price=25000, # Minimum price accepted for the project
@@ -347,7 +350,7 @@ value.large.projects <- getProjectPresentValue(
   y=y, # Annual interest rate
   r=r, # Inflation rate
   # Princing of the project
-  project.type="LargeProjects", # Project type
+  project.type="03LargeProjects", # Project type
   average.price=200000, # Expected price of the project
   sd.price=70000, # Standar deviation of the price of the project
   minimum.price=100000, # Minimum price accepted for the project
@@ -366,7 +369,7 @@ value.enterprice.projects <- getProjectPresentValue(
   y=y, # Annual interest rate
   r=r, # Inflation rate
   # Princing of the project
-  project.type="EnterpriceProjects", # Project type
+  project.type="04EnterpriceProjects", # Project type
   average.price=1600000, # Expected price of the project
   sd.price=200000, # Standar deviation of the price of the project
   minimum.price=500000, # Minimum price accepted for the project

@@ -374,16 +374,9 @@ if (time < t) {
   present.values <- c(present.values, present.value)
 }
 
-ggplot(data=positive.flows.df, aes(x=as_date(positive.flows.df$Date), y=positive.flows.df$Amount)) +
-  geom_point(color="blue", size=0.5) + 
-  ylim(c(0,max(positive.flows.df$Amount)+1000)) +
-  xlim(c(as_date(Sys.time()),max(as_date(positive.flows.df$Date)))) +
-  #geom_hline(yintercept=mean(positive.flows$Amount), size=1, color="cyan") +
-  #geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0), color="#00AFBB") +
-  geom_linerange(aes(x=as_date(positive.flows.df$Date), ymax=positive.flows.df$Amount, ymin=0, color=positive.flows.df$Concept)) +
-  labs(title="Revenues", x="Time (years)", y="Income") +
-  guides(color=guide_legend(title="Types of income")) +
-  scale_x_date(date_minor_breaks = "1 day")
+break.vec <- c(seq(from=floor_date(as_date(Sys.time()), unit="month"),
+                   to=ceiling_date(max(as_date(positive.flows.df$Date)), unit="month"),
+                   by="month"))
 
 ggplot(data=positive.flows.df, aes(x=as_date(positive.flows.df$Date), y=positive.flows.df$Amount)) +
   geom_point(color="blue", size=0.5) + 
@@ -394,9 +387,8 @@ ggplot(data=positive.flows.df, aes(x=as_date(positive.flows.df$Date), y=positive
   geom_linerange(aes(x=as_date(positive.flows.df$Date), ymax=positive.flows.df$Amount, ymin=0, color=positive.flows.df$Concept)) +
   labs(title="Revenues", x="Time (years)", y="Income") +
   guides(color=guide_legend(title="Types of income")) +
-  scale_x_date(breaks = break.vec, limits=c(as_date(Sys.time()),NA)) +
+  scale_x_date(breaks = break.vec, date_minor_breaks = "1 month", limits=c(as_date(Sys.time()),NA)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
 
 # Dummy data frame
 a <- c(-3,-5,-12,0,3,1,34,2,76)
@@ -409,3 +401,127 @@ c <- c("cat","dog","cow","horse","cat","cat","cat","sebastian","elephant")
 df <- data.frame(a,b,c)
 df[(df$a > 0 & df$c == "cat"), ]
 as_datetime(df$b)
+
+
+
+
+
+
+# Continue here
+
+
+# Testing shitty r
+
+
+t=5 # Lifetime of the company
+# Mexican economy
+y=0.1 # Annual interest rate
+r=-0.02 # Inflation rate
+
+lambda.po=5 # Expected number of projects developed in a year
+average.development.months=14 # Expected development time of the project measured in months
+# Revenue scheme
+average.monthly.rent=400000 # Expected value of the monthly rent that the project will generate
+sd.monthly.rent=100000 # Standar deviation of the monthly rent that the project will generate
+
+# Calculate monthly effective interest rate
+y12 <- (1+y)^(1/12)-1
+
+time <- 0
+arrival.time <- 0
+interarrivals <- c()
+arrivals <- c()
+adjusted.prices <- c()
+positive.flows <- data.frame()
+negative.flows <- data.frame()
+present.values <- c()
+arrival.dates <- c()
+# Simulate projects arrivals
+while (time < t) {
+  interarrival.time <- rexp(n=1, rate=lambda.po)
+  time <- time + interarrival.time 
+  if (time < t) {
+    interarrivals <- c(interarrivals, interarrival.time)
+    arrival.time <- arrival.time + interarrival.time
+    arrivals <- c(arrivals, arrival.time)
+    # Get development time
+    development.time <- rlnorm(1, meanlog=0, sdlog=0.25)*average.development.months
+    development.months <- ceiling(development.time)
+    time.to.end <- t - (arrival.time + development.months/12)
+    time.to.end <- max(0, time.to.end)
+    months.to.end <- ceiling(time.to.end*12)
+    monthly.rent <- rnorm(1, mean=average.monthly.rent, sd=sd.monthly.rent)
+    monthly.rent <- max(0, monthly.rent)
+    # Populate cash flows collections
+    now <- as_datetime(Sys.time())
+    arrival.time.in.seconds <- as.numeric(duration(arrival.time, unit="years"))
+    arrival.date <- now + seconds(arrival.time.in.seconds)
+    arrival.dates <- c(arrival.dates, arrival.date)
+    for (s in 1:months.to.end) {
+      monthly.rent.payment.date <- arrival.date + months(development.months + s)
+      if (is.na(monthly.rent.payment.date)) {
+        monthly.rent.payment.date <- arrival.date - days(3) + months(development.months + s)
+        if (is.na(monthly.rent.payment.date)) {
+          print("No mames no puede ser")
+        }
+      }
+      entry <- list(monthly.rent.payment.date, monthly.rent, TRUE, "Monthly revenue of inhouse project")
+      positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
+    }
+    names(positive.flows) <- c("Date","Amount","Income","Concept")
+    #names(negative.flows) <- c("Date","Amount","Income","Concept")
+    # Compute present values
+    discount.factor <- (1/(1+y))^arrival.time
+    monthly.rents.present.value <- discount.factor*monthly.rent*((1-(1/(1+y12))^(months.to.end))/y12)
+    present.value <- monthly.rents.present.value
+    present.values <- c(present.values, present.value)
+  }
+}
+
+revenues.plot <- ggplot(data=positive.flows, aes(x=as_datetime(positive.flows$Date), y=positive.flows$Amount)) +
+  geom_point(color="blue", size=0.5) + 
+  ylim(c(0,max(positive.flows$Amount)+1000)) +
+  xlim(c(as_datetime(Sys.time()),max(as_datetime(positive.flows$Date)))) +
+  #geom_hline(yintercept=mean(positive.flows$Amount), size=1, color="cyan") +
+  #geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0), color="#00AFBB") +
+  geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0, color=positive.flows$Concept)) +
+  labs(title="Revenues", x="Time (years)", y="Income") +
+  guides(color=guide_legend(title="Types of income"))
+
+arrivals.df <- data.frame(arrival.dates)
+names(arrivals.df) <- c("Date")
+
+arrivals.plot <- ggplot(data=arrivals.df, aes(x=as_datetime(arrivals.df$Date), y=c(0))) + 
+  ylim(c(0,0)) +
+  labs(title="Project arrivals", x="Time", y="") +
+  theme(aspect.ratio=0.1, 
+        axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()) +
+  geom_hline(yintercept=0, size=0.5, color="cyan") +
+  geom_point(shape=4, size=2) 
+
+projects.present.value <- sum(present.values)
+
+# Export anual data
+now <- as_datetime(Sys.time())
+count <- 1
+# Get revenues for each year
+revenues <- data.frame()
+repeat {
+  then <- now + years(count-1)
+  year <- lubridate::year(as_datetime(then))
+  df <- positive.flows[year(as_datetime(positive.flows$Date)) == year,]
+  # if (length(df[,1]) == 0) {
+  #   break
+  # }
+  if (year > lubridate::year(now + years(t))) {
+    break
+  }
+  total.rent.payments <- sum(df[df$Concept %in% c("Monthly rent payment"),]$Amount)
+  entry <- list(year, total.rent.payments)
+  revenues <- rbind(revenues, entry)
+  names(revenues) <- c("Year","Rent")
+  count <- count + 1
+}
+
