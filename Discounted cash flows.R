@@ -276,13 +276,10 @@ getInhouseProjectPresentValue <- function(
     then <- now + years(count-1)
     year <- lubridate::year(as_datetime(then))
     df <- positive.flows[year(as_datetime(positive.flows$Date)) == year,]
-    # if (length(df[,1]) == 0) {
-    #   break
-    # }
     if (year > lubridate::year(now + years(t))) {
       break
     }
-    total.rent.payments <- sum(df[df$Concept %in% c("Monthly rent payment"),]$Amount)
+    total.rent.payments <- sum(df[df$Concept %in% c("Monthly revenue of inhouse project"),]$Amount)
     entry <- list(year, total.rent.payments)
     revenues <- rbind(revenues, entry)
     names(revenues) <- c("Year","Rent")

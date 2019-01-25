@@ -403,13 +403,6 @@ df[(df$a > 0 & df$c == "cat"), ]
 as_datetime(df$b)
 
 
-
-
-
-
-# Continue here
-
-
 # Testing shitty r
 
 
@@ -518,7 +511,7 @@ repeat {
   if (year > lubridate::year(now + years(t))) {
     break
   }
-  total.rent.payments <- sum(df[df$Concept %in% c("Monthly rent payment"),]$Amount)
+  total.rent.payments <- sum(df[df$Concept %in% c("Monthly revenue of inhouse project"),]$Amount)
   entry <- list(year, total.rent.payments)
   revenues <- rbind(revenues, entry)
   names(revenues) <- c("Year","Rent")
