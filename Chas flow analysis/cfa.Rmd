@@ -9,12 +9,11 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
-# Avoid scientific notation
-options(scipen = 999)
+# Load libraries
 library(lubridate)
 library(ggplot2)
-library(gridExtra)
-library(grid)
+# Avoid scientific notation
+options(scipen = 999)
 ```
 
 ```{r economical assumptions}

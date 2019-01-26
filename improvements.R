@@ -1,3 +1,5 @@
+library(ggplot2)
+library(lubridate)
 
 ## Using gama months distribution
 # averageDevelopmentMonths <- 12
@@ -44,6 +46,11 @@ for (i in 1:10000) {
   val <- sampleFromMonthsDistribution(sop = sop, probs = probs)
   vals <- c(vals, val)
 }
+ggplot(data.frame(vals), aes(x=vals)) + 
+  geom_histogram(color="black", fill="white")
+
+# ---- Price distribution ----
+vals <- rlnorm(10000, mean = log(50000), sd = 1 / log(20000))
 ggplot(data.frame(vals), aes(x=vals)) + 
   geom_histogram(color="black", fill="white")
 
