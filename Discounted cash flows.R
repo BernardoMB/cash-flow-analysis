@@ -75,7 +75,7 @@ getProjectPresentValue <- function(
       arrival.date <- now + seconds(arrival.time.in.seconds)
       entry <- list(arrival.date, advance.charge, TRUE, "Advance charge")
       positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
-      for (l in 1:development.months) {
+        for (l in 1:development.months) {
         monthly.payment.date <- arrival.date + months(l)
         if (is.na(monthly.payment.date)) {
           monthly.payment.date <- arrival.date - days(3) + months(l)
