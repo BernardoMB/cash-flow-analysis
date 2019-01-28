@@ -70,11 +70,10 @@ t=5 # Lifetime of the company
 # Mexican economy
 y=0.1 # Annual interest rate
 r=-0.02 # Inflation rate
+# Project
 projectType="02SmallProjects" # Project type
-# Princing of the project
 averagePrice=50000 # Expected price of the project
 sdPrice=20000 # Standar deviation of the price of the project
-minimumPrice=25000 # Minimum price accepted for the project
 lambda=5 # Expected number of projects developed in a year
 # Development time distribution
 sop=c(   2,   3,    4,    5,   6,   7,   8)
@@ -165,7 +164,6 @@ while (time < t) {
   }
 }
 names(positiveFlows) <- c("Date","Amount","Income","Concept")
-
 breaksVec <- c(seq(from=floor_date(as_date(Sys.time()), unit="month"),
                    to=ceiling_date(max(as_date(positiveFlows$Date)), unit="month"),
                    by="6 months"))
@@ -185,8 +183,6 @@ scale_x_date(breaks = breaksVec, date_minor_breaks = "1 month", limits = c(as_da
   #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Final fee"),]$Amount), size=1, color=coloresChidos[3]) +
   #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Monthly rent"),]$Amount), size=1, color=coloresChidos[4]) +
   #scale_color_manual(values=coloresChidos)
-revenuesPlot
-
 arrivalsDf <- positiveFlows[positiveFlows$Concept %in% c("Advance fee"),]
 arrivalsPlot <- ggplot(data=arrivalsDf, aes(x=as_date(arrivalsDf$Date), y=c(0))) + 
   ylim(c(0,0)) +
@@ -197,30 +193,33 @@ arrivalsPlot <- ggplot(data=arrivalsDf, aes(x=as_date(arrivalsDf$Date), y=c(0)))
         axis.ticks.y=element_blank()) +
   geom_hline(yintercept=0, size=0.5, color="cyan") +
   geom_point(shape=4, size=2) 
-arrivalsPlot
-
 projectsPresentValue <- sum(presentValues)
-projectsPresentValue
-
 # Get anual revenues
-revenues <- data.frame()
+annualRevenues <- data.frame()
 for (i in 1:t) {
   lowerBound <- now + lubridate:::years(i - 1)
   upperBound <- lowerBound + lubridate:::years(1)
   df <- positiveFlows[lowerBound <= as_date(positiveFlows$Date) & as_date(positiveFlows$Date) < upperBound,]
-  numeronsio <- numeronsio + length(df$Date)
   total.advance.payments <- sum(df[df$Concept %in% c("Advance fee"),]$Amount)
   total.monthly.payments <- sum(df[df$Concept %in% c("Monthly fee"),]$Amount)
   total.final.payments <- sum(df[df$Concept %in% c("Final fee"),]$Amount)
   total.rent.payments <- sum(df[df$Concept %in% c("Monthly rent"),]$Amount)
   period <- lowerBound %--% upperBound
   entry <- list(as.factor(period), total.advance.payments, total.monthly.payments, total.final.payments, total.rent.payments)
-  revenues <- rbind(revenues, entry, stringsAsFactors = FALSE)
+  annualRevenues <- rbind(annualRevenues, entry, stringsAsFactors = FALSE)
 }
-names(revenues) <- c("Period","Advance fees","Monthly fees","Final fees","Monthly rents")
-numeronsio
+names(annualRevenues) <- c("Period","Advance fees","Monthly fees","Final fees","Monthly rents")
+write.csv(t(annualRevenues), file=paste(projectType,"RevenueData.csv",sep=""))
+result <- list(
+  positiveFlows,
+  projectsPresentValue,
+  annualRevenues,
+  revenuesPlot,
+  arrivalsPlot
+)
+names(result) <- c("Flows", "Projects PV", "Annual revenues", "Revenues", "Arrivals")
 
-write.csv(revenues, file=paste(projectType,"RevenueData.csv",sep=""))
+
 
 
 
