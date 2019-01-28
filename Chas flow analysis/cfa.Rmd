@@ -9,17 +9,20 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
 # Load libraries
 library(lubridate)
 library(ggplot2)
+library(latex2exp  )
 # Avoid scientific notation
 options(scipen = 999)
 ```
 
 ```{r economical assumptions}
-t <- 5
-y <- 0.10
-r <- -0.02
+t <- 5 # Lifetime of the company
+# Mexican economy
+y <- 0.10 # Annual interest rate
+r <- -0.02 # Inflation rate
 ```
 
 \section{Assumptions}
@@ -43,554 +46,722 @@ The company will work on $5$ types of projects at the same time:
 
 Each type of project will arrive to the company according to a Poisson point process with a given ratio $\lambda$ per year. In other words, the company will arrange contracts with frequency in such a way that it will have development start points randomly distributed in the timeline with a given average. For example, we will consider that the company will develop an average of $\lambda=24$ landing pages in a year (two each month). We will make these kind of assumptions for each type of project the company wants to develop and the average of contracts in a year will depend on the size of the project. 
 
-```{r functions}
-getProjectPresentValue <- function(
-  t,# Lifetime of the company
-  # Mexican economy
-  y, # Annual interest rate
-  r, # Inflation rate
-  # Princing of the project
-  average.price, # Expected price of the project
-  sd.price, # Standar deviation of the price of the project
-  minimum.price, # Minimum price accepted for the project
-  average.development.months, # Expected development time of the project measured in months
-  lambda.po, # Expected number of projects developed in a year
-  # Payment scheme
-  advance.charge.rate, # Percentage of the final price that is paid at the begining of the project
-  during.development.charge.rate, # Percentage of the final price that is paid during the development of the project
-  final.charge.rate, # Percentage of the final price that is paid at the end of the development of the project
-  monthly.rent.rate # Percentaje of the price of the project to be charged monthly for project maintenance
-) {
-  # Calculate monthly effective interest rate
-  y12 <- (1+y)^(1/12)-1
-  
-  time <- 0
-  arrival.time <- 0
-  interarrivals <- c()
-  arrivals <- c()
-  positive.flows <- data.frame()
-  negative.flows <- data.frame()
-  adjusted.prices <- c()
-  present.values <- c()
-  # Simulate projects arrivals
-  while (time < t) {
-    interarrival.time <- rexp(n=1, rate=lambda.po)
-    time <- time + interarrival.time 
-    if (time < t) {
-      interarrivals <- c(interarrivals, interarrival.time)
-      arrival.time <- arrival.time + interarrival.time
-      arrivals <- c(arrivals, arrival.time)
-      # Compute the present value of the project that just came in
-      price <- rnorm(1, mean=average.price, sd=sd.price)-rgamma(1, shape=2, rate=0.6)*1000
-      price <- max(minimum.price, price)
-      # Adjust price with inflation rate
-      adjusted.price <- price*(1+r)^arrival.time
-      adjusted.prices <- c(adjusted.prices, adjusted.price)
-      # Payment scheme
-      advance.charge <- adjusted.price*advance.charge.rate
-      during.development.charge <- adjusted.price*during.development.charge.rate
-      final.charge <- adjusted.price*final.charge.rate
-      monthly.rent <- adjusted.price*monthly.rent.rate
-      # Simulate development time in months
-      development.time <- rlnorm(1, meanlog=0, sdlog=0.25)*average.development.months
-      development.months <- ceiling(development.time)
-      monthly.payment <- during.development.charge/development.months
-      time.to.end <- t - (arrival.time + development.months/12)
-      time.to.end <- max(0, time.to.end)
-      months.to.end <- ceiling(time.to.end*12)
-      # Populate cash flows collections
-      now <- as_datetime(Sys.time())
-      arrival.time.in.seconds <- as.numeric(duration(arrival.time, unit="years"))
-      arrival.date <- now + seconds(arrival.time.in.seconds)
-      entry <- list(arrival.date, advance.charge, TRUE, "Advance charge")
-      positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
-      for (l in 1:development.months) {
-        monthly.payment.date <- arrival.date + months(l)
-        if (is.na(monthly.payment.date)) {
-          monthly.payment.date <- arrival.date - days(3) + months(l)
-          if (is.na(monthly.payment.date)) {
-            print("No mames no puede ser")
-          }
-        }
-        entry <- list(monthly.payment.date, monthly.payment, TRUE, "Monthly charge")
-        positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
-      }
-      end.date <- arrival.date + months(development.months)
-      if (is.na(end.date)) {
-        end.date <- arrival.date - days(3) + months(development.months)
-        if (is.na(end.date)) {
-          print("No mames no puede ser")
-        }
-      }
-      entry <- list(end.date, final.charge, TRUE, "Final charge")
-      positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
-      for (s in 1:months.to.end) {
-        monthly.rent.payment.date <- arrival.date + months(development.months + s)
-        if (is.na(monthly.rent.payment.date)) {
-          monthly.rent.payment.date <- arrival.date - days(3) + months(development.months + s)
-          if (is.na(monthly.rent.payment.date)) {
-            print("No mames no puede ser")
-          }
-        }
-        entry <-list(monthly.rent.payment.date, monthly.rent, TRUE, "Monthly rent payment")
-        positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
-      }
-      names(positive.flows) <- c("Date","Amount","Income","Concept")
-      #names(negative.flows) <- c("Date","Amount","Income","Concept")
-      # Compute present values based on payment scheme
-      discount.factor <- (1/(1+y))^arrival.time
-      fractional.annuity <- ((1-(1/(1+y12))^development.months)/y12)
-      advance.charge.present.value <- discount.factor*advance.charge
-      monthly.charges.present.value <- discount.factor*monthly.payment*fractional.annuity
-      final.payment.present.value <- discount.factor*((1/(1+y))^(development.time/12))*final.charge
-      monthly.rents.present.value <- discount.factor*((1/(1+y))^(development.time/12))*monthly.rent*((1-(1/(1+y12))^(months.to.end))/y12)
-      # Compute total present value
-      present.value <- advance.charge.present.value + monthly.charges.present.value + final.payment.present.value + monthly.rents.present.value
-      present.values <- c(present.values, present.value)
-    }
+```{r utility functions}
+sampleFromMonthsDistribution <- function(sop, probs) {
+  if (sum(probs) != 1) {
+    stop(paste("Probs should add up 1. Got ", sum(probs)))
   }
-  
-  revenues.plot <- ggplot(data=positive.flows, aes(x=as_datetime(positive.flows$Date), y=positive.flows$Amount)) +
-    geom_point(color="blue", size=0.5) + 
-    ylim(c(0,max(positive.flows$Amount)+1000)) +
-    xlim(c(as_datetime(Sys.time()),max(as_datetime(positive.flows$Date)))) +
-    #geom_hline(yintercept=mean(positive.flows$Amount), size=1, color="cyan") +
-    #geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0), color="#00AFBB") +
-    geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0, color=positive.flows$Concept)) +
-    labs(title="Revenues", x="Time (years)", y="Income") +
-    guides(color=guide_legend(title="Types of income"))
-  
-  arrivals.df <- positive.flows[positive.flows$Concept %in% c("Advance charge"),]
-  arrivals.plot <- ggplot(data=arrivals.df, aes(x=as_datetime(arrivals.df$Date), y=c(0))) + 
-    ylim(c(0,0)) +
-    labs(title="Project arrivals", x="Time", y="") +
-    theme(
-      #aspect.ratio=0.1, 
-          axis.title.y=element_blank(),
-          axis.text.y=element_blank(),
-          axis.ticks.y=element_blank()) +
-    geom_hline(yintercept=0, size=0.5, color="cyan") +
-    geom_point(shape=4, size=2) 
-  
-  projects.present.value <- sum(present.values)
-  
-  return(list(
-    positive.flows,
-    negative.flows,
-    revenues.plot,
-    arrivals.plot,
-    projects.present.value
-  ))
+  probsAc <- cumsum(probs)
+  unif <- runif(1)
+  for (i in 1:length(probsAc)) {
+    if (unif < probsAc[i]) {
+      return(sop[i])
+    }  
+  }
 }
 
-getInhouseProjectPresentValue <- function(
+sumMonths <- function(date, months) {
+  result <- date + lubridate:::months.numeric(months)
+  if (is.na(result)) {
+    result <- date + lubridate:::days(3) + lubridate:::months.numeric(months)
+    return(result)
+  }
+  return(result)
+}
+```
+
+```{r functions}
+getProjectsCashFlows <- function(
   t, # Lifetime of the company
   # Mexican economy
   y, # Annual interest rate
   r, # Inflation rate
-  # Project details
-  lambda.po, # Expected number of projects developed in a year
-  average.development.months, # Expected development time of the project measured in months
-  # Revenue scheme
-  average.monthly.rent, # Expected value of the monthly rent that the project will generate
-  sd.monthly.rent # Standar deviation of the monthly rent that the project will generate
+  # Project
+  projectType, # Project type
+  averagePrice, # Expected price of the project
+  sdPrice, # Standar deviation of the price of the project
+  lambda, # Expected number of projects developed in a year
+  # Project development time distribution
+  sop,
+  probs,
+  # Payment scheme
+  advanceFeeRate, # Percentage of the final price that is paid at the begining of the project
+  monthlyFeeRate, # Percentage of the final price that is paid during the development of the project
+  finalFeeRate, # Percentage of the final price that is paid at the end of the development of the project
+  monthlyRentRate # Percentaje of the price of the project to be charged monthly for project maintenance
 ) {
   # Calculate monthly effective interest rate
-  y12 <- (1+y)^(1/12)-1
-  
+  y12 <- ( 1 + y ) ^ ( 1 / 12) - 1
   time <- 0
-  arrival.time <- 0
-  interarrivals <- c()
-  arrivals <- c()
-  adjusted.prices <- c()
-  positive.flows <- data.frame()
-  negative.flows <- data.frame()
-  present.values <- c()
-  arrival.dates <- c()
-  # Simulate projects arrivals
+  arrivalTime <- 0
+  positiveFlows <- data.frame()
+  now <- as_date(Sys.time())
+  valuationPeriodEndDate <- now + years(t)
+  presentValues <- c()
   while (time < t) {
-    interarrival.time <- rexp(n=1, rate=lambda.po)
-    time <- time + interarrival.time 
+    interarrivalTime <- rexp(n = 1, rate = lambda)
+    time <- time + interarrivalTime 
     if (time < t) {
-      interarrivals <- c(interarrivals, interarrival.time)
-      arrival.time <- arrival.time + interarrival.time
-      arrivals <- c(arrivals, arrival.time)
-      # Get development time
-      development.time <- rlnorm(1, meanlog=0, sdlog=0.25)*average.development.months
-      development.months <- ceiling(development.time)
-      time.to.end <- t - (arrival.time + development.months/12)
-      time.to.end <- max(0, time.to.end)
-      months.to.end <- ceiling(time.to.end*12)
-      monthly.rent <- rnorm(1, mean=average.monthly.rent, sd=sd.monthly.rent)
-      monthly.rent <- max(0, monthly.rent)
-      # Populate cash flows collections
-      now <- as_datetime(Sys.time())
-      arrival.time.in.seconds <- as.numeric(duration(arrival.time, unit="years"))
-      arrival.date <- now + seconds(arrival.time.in.seconds)
-      arrival.dates <- c(arrival.dates, arrival.date)
-      for (s in 1:months.to.end) {
-        monthly.rent.payment.date <- arrival.date + months(development.months + s)
-        if (is.na(monthly.rent.payment.date)) {
-          monthly.rent.payment.date <- arrival.date - days(3) + months(development.months + s)
-          if (is.na(monthly.rent.payment.date)) {
-            print("No mames no puede ser")
-          }
+      arrivalTime <- arrivalTime + interarrivalTime
+      price <- rlnorm(1, mean = log(averagePrice), sd = 1 / log(sdPrice))
+      adjustedPrice <- price * (1 + r) ^ arrivalTime
+      advanceFee <- adjustedPrice * advanceFeeRate
+      arrivalTimeInSeconds <- as.numeric(duration(arrivalTime, unit = "years"))
+      arrivalDate <- as_date(now + seconds(arrivalTimeInSeconds))
+      entry <- list(arrivalDate, advanceFee, TRUE, "Advance fee")
+      positiveFlows <- rbind(positiveFlows, entry, stringsAsFactors = FALSE)
+      developmentMonths <- sampleFromMonthsDistribution(sop = sop, probs = probs)
+      monthlyFee <- adjustedPrice * monthlyFeeRate / developmentMonths
+      endDate <- sumMonths(arrivalDate, developmentMonths)
+      if (endDate < valuationPeriodEndDate) {
+        # Case 1
+        for (i in 1:developmentMonths) {
+          monthlyFeeDate <- sumMonths(arrivalDate, i)
+          
+          entry <- list(monthlyFeeDate, monthlyFee, TRUE, "Monthly fee")
+          positiveFlows <- rbind(positiveFlows, entry, stringsAsFactors = FALSE)
         }
-        entry <-list(monthly.rent.payment.date, monthly.rent, TRUE, "Monthly revenue")
-        positive.flows <- rbind(positive.flows, entry, stringsAsFactors=FALSE)
+        finalFee <- adjustedPrice * finalFeeRate
+        entry <- list(endDate, finalFee, TRUE, "Final fee")
+        positiveFlows <- rbind(positiveFlows, entry, stringsAsFactors = FALSE)
+        count <- 1
+        monthlyRent <- adjustedPrice * monthlyRentRate
+        repeat {
+          monthlyRentDate <- sumMonths(endDate, count)
+          if (monthlyRentDate > valuationPeriodEndDate) {
+            break
+          }
+          entry <- list(monthlyRentDate, monthlyRent, TRUE, "Monthly rent")
+          positiveFlows <- rbind(positiveFlows, entry, stringsAsFactors = FALSE)
+          count <- count + 1
+        }
+        rentMonths <- count - 1
+        discountFactor <- 1 / (1 + y) ^ arrivalTime
+        advanceFeePresentValue <- discountFactor * advanceFee
+        fractionalAnnuity <- (1 - (1 / (1 + y12)) ^ developmentMonths) / y12
+        monthlyFeesPresentValue <- discountFactor * monthlyFee * fractionalAnnuity
+        developmentMonthsDiscountFactor <- 1 / (1 + y) ^ (developmentMonths / 12)
+        finalFeePresentValue <- discountFactor * developmentMonthsDiscountFactor * finalFee
+        fractionalAnnuityRents <- (1 - (1 / (1 + y12)) ^ rentMonths) / y12
+        monthlyRentsPresentValue <- discountFactor * developmentMonthsDiscountFactor * monthlyRent * fractionalAnnuityRents
+        presentValue <- advanceFeePresentValue + monthlyFeesPresentValue + finalFeePresentValue + monthlyRentsPresentValue
+        presentValues <- c(presentValues, presentValue)
+      } else {
+        # Case 2
+        count <- 1
+        repeat {
+          monthlyFeeDate <- sumMonths(arrivalDate, count)
+          if (monthlyFeeDate > valuationPeriodEndDate) {
+            break
+          }
+          entry <- list(monthlyFeeDate, monthlyFee, TRUE, "Monthly fee")
+          positiveFlows <- rbind(positiveFlows, entry, stringsAsFactors = FALSE)
+          count <- count + 1
+        }
+        discountFactor <- 1 / (1 + y) ^ arrivalTime
+        advanceFeePresentValue <- discountFactor * advanceFee
+        feeMonths <- count - 1
+        fractionalAnnuity <- (1 - (1 / (1 + y12)) ^ feeMonths) / y12
+        monthlyFeesPresentValue <- discountFactor * monthlyFee * fractionalAnnuity
+        presentValue <- advanceFeePresentValue + monthlyFeesPresentValue
+        presentValues <- c(presentValues, presentValue)
       }
-      names(positive.flows) <- c("Date","Amount","Income","Concept")
-      #names(negative.flows) <- c("Date","Amount","Income","Concept")
-      # Compute present values
-      discount.factor <- (1/(1+y))^arrival.time
-      monthly.rents.present.value <- discount.factor*monthly.rent*((1-(1/(1+y12))^(months.to.end))/y12)
-      present.value <- monthly.rents.present.value
-      present.values <- c(present.values, present.value)
     }
   }
-  
-  revenues.plot <- ggplot(data=positive.flows, aes(x=as_datetime(positive.flows$Date), y=positive.flows$Amount)) +
+  names(positiveFlows) <- c("Date","Amount","Income","Concept")
+  breaksVec <- c(seq(from=floor_date(as_date(Sys.time()), unit="month"),
+                     to=ceiling_date(max(as_date(positiveFlows$Date)), unit="month"),
+                     by="6 months"))
+  coloresChidos <- c("hotpink", "gold", "darkorange", "coral4")
+  revenuesPlot <- ggplot(data=positiveFlows, aes(x=as_date(positiveFlows$Date), y=positiveFlows$Amount)) +
     geom_point(color="blue", size=0.5) + 
-    ylim(c(0,max(positive.flows$Amount)+1000)) +
-    xlim(c(as_datetime(Sys.time()),max(as_datetime(positive.flows$Date)))) +
-    #geom_hline(yintercept=mean(positive.flows$Amount), size=1, color="cyan") +
-    #geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0), color="#00AFBB") +
-    geom_linerange(aes(x=as_datetime(positive.flows$Date), ymax=positive.flows$Amount, ymin=0, color=positive.flows$Concept)) +
+    ylim(c(0,max(positiveFlows$Amount)+1000)) +
+    xlim(c(as_date(Sys.time()),max(as_date(positiveFlows$Date)))) +
     labs(title="Revenues", x="Time (years)", y="Income") +
-    guides(color=guide_legend(title="Types of income"))
-  
-  arrivals.df <- data.frame(arrival.dates)
-  names(arrivals.df) <- c("Date")
-  
-  arrivals.plot <- ggplot(data=arrivals.df, aes(x=as_datetime(arrivals.df$Date), y=c(0))) + 
+    geom_linerange(aes(x=as_date(positiveFlows$Date), ymax=positiveFlows$Amount, ymin=0, color=positiveFlows$Concept)) +
+    guides(color=guide_legend(title="Types of income")) +
+    scale_x_date(breaks = breaksVec, date_minor_breaks = "1 month", limits = c(as_date(Sys.time()), NA)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  #geom_linerange(aes(x=as_datetime(positiveFlows$Date), ymax=positiveFlows$Amount, ymin=0), color="#00AFBB") +
+  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Advance fee"),]$Amount), size=1, color=coloresChidos[1]) +
+  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Monthly fee"),]$Amount), size=1, color=coloresChidos[2]) +
+  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Final fee"),]$Amount), size=1, color=coloresChidos[3]) +
+  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Monthly rent"),]$Amount), size=1, color=coloresChidos[4]) +
+  #scale_color_manual(values=coloresChidos)
+  arrivalsDf <- positiveFlows[positiveFlows$Concept %in% c("Advance fee"),]
+  arrivalsPlot <- ggplot(data=arrivalsDf, aes(x=as_date(arrivalsDf$Date), y=c(0))) + 
     ylim(c(0,0)) +
     labs(title="Project arrivals", x="Time", y="") +
-    theme(
-      #aspect.ratio=0.1, 
+    theme(aspect.ratio=0.1, 
           axis.title.y=element_blank(),
           axis.text.y=element_blank(),
           axis.ticks.y=element_blank()) +
     geom_hline(yintercept=0, size=0.5, color="cyan") +
     geom_point(shape=4, size=2) 
+  projectsPresentValue <- sum(presentValues)
+  # Get anual revenues
+  annualRevenues <- data.frame()
+  for (i in 1:t) {
+    lowerBound <- now + lubridate:::years(i - 1)
+    upperBound <- lowerBound + lubridate:::years(1)
+    df <- positiveFlows[lowerBound <= as_date(positiveFlows$Date) & as_date(positiveFlows$Date) < upperBound,]
+    total.advance.payments <- sum(df[df$Concept %in% c("Advance fee"),]$Amount)
+    total.monthly.payments <- sum(df[df$Concept %in% c("Monthly fee"),]$Amount)
+    total.final.payments <- sum(df[df$Concept %in% c("Final fee"),]$Amount)
+    total.rent.payments <- sum(df[df$Concept %in% c("Monthly rent"),]$Amount)
+    period <- lowerBound %--% upperBound
+    entry <- list(as.factor(period), total.advance.payments, total.monthly.payments, total.final.payments, total.rent.payments)
+    annualRevenues <- rbind(annualRevenues, entry, stringsAsFactors = FALSE)
+  }
+  names(annualRevenues) <- c("Period","Advance fees","Monthly fees","Final fees","Monthly rents")
+  write.csv(annualRevenues, file=paste(projectType,"RevenueData.csv",sep=""))
+  result <- list(
+    positiveFlows,
+    projectsPresentValue,
+    annualRevenues,
+    revenuesPlot,
+    arrivalsPlot
+  )
+  names(result) <- c("Flows", "Projects PV", "Annual revenues", "Revenues", "Arrivals")
+  return(result)
+}
+
+getInhouseProjectsCashFlows <- function(
+  t, # Lifetime of the company
+  # Mexican economy
+  y, # Annual interest rate
+  r, # Inflation rate
+  # Project
+  projectType, # Project type
+  lambda, # Expected number of projects developed in a year
+  # Development time distribution
+  sop,
+  probs,
+  # Payment scheme
+  averageMonthlyRent, # Project average monthly rent
+  sdMonthlyRent # Project monthly rent standar deviation
+) {
+  # Calculate monthly effective interest rate
+  y12 <- ( 1 + y ) ^ ( 1 / 12) - 1
   
-  projects.present.value <- sum(present.values)
-  
-  return(list(
-    positive.flows,
-    negative.flows,
-    revenues.plot,
-    arrivals.plot,
-    projects.present.value
-  ))
+  time <- 0
+  arrivalTime <- 0
+  positiveFlows <- data.frame()
+  now <- as_date(Sys.time())
+  valuationPeriodEndDate <- now + years(t)
+  arrivals <- c()
+  presentValues <- c()
+  while (time < t) {
+    interarrivalTime <- rexp(n = 1, rate = lambda)
+    time <- time + interarrivalTime 
+    if (time < t) {
+      arrivalTime <- arrivalTime + interarrivalTime
+      arrivalTimeInSeconds <- as.numeric(duration(arrivalTime, unit = "years"))
+      arrivalDate <- as_date(now + seconds(arrivalTimeInSeconds))
+      arrivals <- c(arrivals, arrivalDate)
+      developmentMonths <- sampleFromMonthsDistribution(sop = sop, probs = probs)
+      endDate <- sumMonths(arrivalDate, developmentMonths)
+      if (endDate < valuationPeriodEndDate) {
+        # Case 1
+        count <- 1
+        repeat {
+          monthlyRentDate <- sumMonths(endDate, count)
+          if (monthlyRentDate > valuationPeriodEndDate) {
+            break
+          }
+          monthlyRent <- rlnorm(1, mean = log(averageMonthlyRent), sd = 1 / log(sdMonthlyRent))
+          entry <- list(monthlyRentDate, monthlyRent, TRUE, "Monthly rent")
+          positiveFlows <- rbind(positiveFlows, entry, stringsAsFactors = FALSE)
+          discountFactor <- 1 / (1 + y) ^ (arrivalTime + (developmentMonths / 12) + (count / 12))
+          presentValue <- discountFactor * monthlyRent 
+          presentValues <- c(presentValues, presentValue)
+          count <- count + 1
+        }
+      }
+    }
+  }
+  names(positiveFlows) <- c("Date","Amount","Income","Concept")
+  breaksVec <- c(seq(from=floor_date(as_date(Sys.time()), unit="month"),
+                     to=ceiling_date(max(as_date(positiveFlows$Date)), unit="month"),
+                     by="6 months"))
+  coloresChidos <- c("hotpink", "gold", "darkorange", "coral4")
+  revenuesPlot <- ggplot(data=positiveFlows, aes(x=as_date(positiveFlows$Date), y=positiveFlows$Amount)) +
+    geom_point(color="blue", size=0.5) + 
+    ylim(c(0,max(positiveFlows$Amount)+1000)) +
+    xlim(c(as_date(Sys.time()),max(as_date(positiveFlows$Date)))) +
+    labs(title="Revenues", x="Time (years)", y="Income") +
+    geom_linerange(aes(x=as_date(positiveFlows$Date), ymax=positiveFlows$Amount, ymin=0, color=positiveFlows$Concept)) +
+    guides(color=guide_legend(title="Types of income")) +
+    scale_x_date(breaks = breaksVec, date_minor_breaks = "1 month", limits = c(as_date(Sys.time()), NA)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  #geom_linerange(aes(x=as_datetime(positiveFlows$Date), ymax=positiveFlows$Amount, ymin=0), color="#00AFBB") +
+  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Advance fee"),]$Amount), size=1, color=coloresChidos[1]) +
+  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Monthly fee"),]$Amount), size=1, color=coloresChidos[2]) +
+  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Final fee"),]$Amount), size=1, color=coloresChidos[3]) +
+  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Monthly rent"),]$Amount), size=1, color=coloresChidos[4]) +
+  #scale_color_manual(values=coloresChidos)
+  arrivalsPlot <- ggplot(data=data.frame(arrivals), aes(x=as_date(arrivals), y=c(0))) + 
+    ylim(c(0,0)) +
+    labs(title="Project arrivals", x="Time", y="") +
+    theme(aspect.ratio=0.1, 
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank()) +
+    geom_hline(yintercept=0, size=0.5, color="cyan") +
+    geom_point(shape=4, size=2) 
+  projectsPresentValue <- sum(presentValues)
+  # Get anual revenues
+  annualRevenues <- data.frame()
+  for (i in 1:t) {
+    lowerBound <- now + lubridate:::years(i - 1)
+    upperBound <- lowerBound + lubridate:::years(1)
+    df <- positiveFlows[lowerBound <= as_date(positiveFlows$Date) & as_date(positiveFlows$Date) < upperBound,]
+    total.rent.payments <- sum(df[df$Concept %in% c("Monthly rent"),]$Amount)
+    period <- lowerBound %--% upperBound
+    entry <- list(as.factor(period), total.rent.payments)
+    annualRevenues <- rbind(annualRevenues, entry, stringsAsFactors = FALSE)
+  }
+  names(annualRevenues) <- c("Period", "Monthly rents")
+  write.csv(t(annualRevenues), file=paste(projectType,"RevenueData.csv",sep=""))
+  result <- list(
+    positiveFlows,
+    projectsPresentValue,
+    annualRevenues,
+    revenuesPlot,
+    arrivalsPlot
+  )
+  names(result) <- c("Flows", "Projects PV", "Annual revenues", "Revenues", "Arrivals")
+  return(result)
 }
 ```
 
 \section{Landing pages}
 
-```{r lading pages assumptions}
-  t=t # Lifetime of the company
+```{r landing pages}
+# Project
+projectType="01Landings" # Project type
+averagePrice=10000 # Expected price of the project
+sdPrice=2000 # Standar deviation of the price of the project
+lambda=12*2 # Expected number of projects developed in a year
+# Development time distribution
+sop=c(1, 2, 3)
+probs=c(4/6, 1/6, 1/6)
+# Payment scheme
+advanceFeeRate=1 # Percentage of the final price that is paid at the begining of the project
+monthlyFeeRate=0 # Percentage of the final price that is paid during the development of the project
+finalFeeRate=0 # Percentage of the final price that is paid at the end of the development of the project
+monthlyRentRate=0.025 # Percentaje of the price of the project to be charged monthly for project maintenance
+
+valueLandings <- getProjectsCashFlows(
+  t,
   # Mexican economy
-  y=y # Annual interest rate
-  r=r # Inflation rate
-  # Princing of the project
-  average.price=10000 # Expected price of the project
-  sd.price=2000 # Standar deviation of the price of the project
-  minimum.price=7000 # Minimum price accepted for the project
-  average.development.months=1 # Expected development time of the project measured in months
-  lambda.po=12*2 # Expected number of projects developed in a year
+  y, # Annual interest rate
+  r, # Inflation rate
+  # Project
+  projectType, # Project type
+  averagePrice, # Expected price of the project
+  sdPrice, # Standar deviation of the price of the project
+  lambda, # Expected number of projects developed in a year
+  # Development time distribution
+  sop,
+  probs,
   # Payment scheme
-  advance.charge.rate=1 # Percentage of the final price that is paid at the begining of the project
-  during.development.charge.rate=0 # Percentage of the final price that is paid during the development of the project
-  final.charge.rate=0 # Percentage of the final price that is paid at the end of the development of the project
-  monthly.rent.rate=0.025 
-value.landings <- getProjectPresentValue(
-  t=t, # Lifetime of the company
-  # Mexican economy
-  y=0.1, # Annual interest rate
-  r=-0.02, # Inflation rate
-  # Princing of the project
-  average.price=10000, # Expected price of the project
-  sd.price=2000, # Standar deviation of the price of the project
-  minimum.price=7000, # Minimum price accepted for the project
-  average.development.months=1, # Expected development time of the project measured in months
-  lambda.po=12*2, # Expected number of projects developed in a year
-  # Payment scheme
-  advance.charge.rate=1, # Percentage of the final price that is paid at the begining of the project
-  during.development.charge.rate=0, # Percentage of the final price that is paid during the development of the project
-  final.charge.rate=0, # Percentage of the final price that is paid at the end of the development of the project
-  monthly.rent.rate=0.025 # Percentaje of the price of the project to be charged monthly for project maintenance
+  advanceFeeRate, # Percentage of the final price that is paid at the begining of the project
+  monthlyFeeRate, # Percentage of the final price that is paid during the development of the project
+  finalFeeRate, # Percentage of the final price that is paid at the end of the development of the project
+  monthlyRentRate # Percentaje of the price of the project to be charged monthly for project maintenance
 )
 ```
 
-Landing pages will arrive to the company with a ratio of $`r lambda.po`$ per year and will consider the following assumptions:
+These type of projects will arrive to the company with a ratio of $`r lambda`$ per year and will consider the following assumptions:
 
 \begin{itemize}
-\item The price of a landing page will be $\$`r average.price`$ MNX in average with a standar deviation of $\$`r sd.price`$ MNX.
-\item The average development time of a landing page will be $`r average.development.months`$ month.
-\item $`r advance.charge.rate`\times 100$ percent of the project will be charged in advance.
+\item The price of the project will be $\$`r averagePrice`$ MXN in average with a standar deviation of $\$`r sdPrice`$ MXN and will have the following distribution:
+
+```{r, fig.align = "center", }
+ggplot(data.frame(x = c(0, 2 * averagePrice)), aes(x = x)) + 
+  stat_function(fun = dlnorm, args = list(mean = log(averagePrice), sd = 1 / log(sdPrice))) +
+  ggtitle("Price density function") +
+  labs(x = TeX('$x$'), y = TeX('$f_{Price}(x)$')) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_vline(xintercept = averagePrice)
+```
+
+The vertical line in the graph above represents the average price of the project. 
+
+\item The development time meaured in montsh of the project will have the following discrete distribution:
+
+```{r, fig.align = "center"}
+vals <- c()
+for (i in 1:10000) {
+  val <- sampleFromMonthsDistribution(sop = sop, probs = probs)
+  vals <- c(vals, val)
+}
+ggplot(data.frame(vals), aes(x=vals)) + 
+  geom_histogram(aes(y = ..count../sum(..count..)), color="black", fill="white") +
+  geom_vline(xintercept = mean(vals))
+```
+
+The vertical line in the graph above represents the average development time of the project measured in months. 
+
+\item $`r advanceFeeRate`\times 100$ percent of the project will be charged in advance.
 \end{itemize}
 
-The positive cash flows that the company will obtain during the following $`r t`$ years due to lading pages development will look similar to the following graph:
+The positive cash flows that the company will obtain during the following $`r t`$ years due to the development of these type of projects will look similar to the following graph:
 
 ```{r landings cash flows graph, fig.align = "center"}
-value.landings[[3]]
+valueLandings$Revenues
 ```
 
 Project arrivals to the company will look like the following graph:
 
-```{r landings arrivals graph, fig.align = "center", fig.height = 1}
-value.landings[[4]]
-landigs.projects.value <- value.landings[[5]]
+```{r landings arrivals graph, fig.align = "center", fig.width = 7, fig.asp = 0.2}
+valueLandings$Arrivals
+landigsProjectsValue <- valueLandings$`Projects PV`
 ```
 
-Given the previous future cash flows, the present value of lading pages development revenues is worth $\$`r landigs.projects.value`$ MNX.
+Given the previous future cash flows, the present value of the revenues of these projects is worth $\$`r landigsProjectsValue`$ MXN.
 
 \section{Small projects}
 
-```{r small projects assumptions}
-  t=t # Lifetime of the company
-  # Mexican economy
-  y=y # Annual interest rate
-  r=r # Inflation rate
-  # Princing of the project
-  average.price=50000 # Expected price of the project
-  sd.price=20000 # Standar deviation of the price of the project
-  minimum.price=25000 # Minimum price accepted for the project
-  average.development.months=4 # Expected development time of the project measured in months
-  lambda.po=5 # Expected number of projects developed in a year
-  # Payment scheme
-  advance.charge.rate=0.25 # Percentage of the final price that is paid at the begining of the project
-  during.development.charge.rate=0.5 # Percentage of the final price that is paid during the development of the project
-  final.charge.rate=0.25 # Percentage of the final price that is paid at the end of the development of the project
-  monthly.rent.rate=0.05 # Percentaje of the price of the project to be charged monthly for project maintenance
+```{r small projects}
+# Project
+projectType="02SmallProjects" # Project type
+averagePrice=50000 # Expected price of the project
+sdPrice=20000 # Standar deviation of the price of the project
+lambda=5 # Expected number of projects developed in a year
+# Development time distribution
+sop=c(   2,   3,    4,    5,   6,   7,   8)
+probs=c(2/37,4/37,15/37,10/37,3/37,2/37,1/37)
+# Payment scheme
+advanceFeeRate=0.25 # Percentage of the final price that is paid at the begining of the project
+monthlyFeeRate=0.5 # Percentage of the final price that is paid during the development of the project
+finalFeeRate=0.25 # Percentage of the final price that is paid at the end of the development of the project
+monthlyRentRate=0.05 # Percentaje of the price of the project to be charged monthly for project maintenance
 
-value.small.projects <- getProjectPresentValue(
-  t=t, # Lifetime of the company
+valueSmallProjects <- getProjectsCashFlows(
+  t,
   # Mexican economy
-  y=y, # Annual interest rate
-  r=r, # Inflation rate
-  # Princing of the project
-  average.price=average.price, # Expected price of the project
-  sd.price=sd.price, # Standar deviation of the price of the project
-  minimum.price=minimum.price, # Minimum price accepted for the project
-  average.development.months=average.development.months, # Expected development time of the project measured in months
-  lambda.po=lambda.po, # Expected number of projects developed in a year
+  y, # Annual interest rate
+  r, # Inflation rate
+  # Project
+  projectType, # Project type
+  averagePrice, # Expected price of the project
+  sdPrice, # Standar deviation of the price of the project
+  lambda, # Expected number of projects developed in a year
+  # Development time distribution
+  sop,
+  probs,
   # Payment scheme
-  advance.charge.rate=advance.charge.rate, # Percentage of the final price that is paid at the begining of the project
-  during.development.charge.rate=during.development.charge.rate, # Percentage of the final price that is paid during the development of the project
-  final.charge.rate=final.charge.rate, # Percentage of the final price that is paid at the end of the development of the project
-  monthly.rent.rate=monthly.rent.rate # Percentaje of the price of the project to be charged monthly for project maintenance
+  advanceFeeRate, # Percentage of the final price that is paid at the begining of the project
+  monthlyFeeRate, # Percentage of the final price that is paid during the development of the project
+  finalFeeRate, # Percentage of the final price that is paid at the end of the development of the project
+  monthlyRentRate # Percentaje of the price of the project to be charged monthly for project maintenance
 )
 ```
 
-Small projects will arrive to the company with a ratio of $`r lambda.po`$ per year and will consider the following assumptions:
+These type of projects will arrive to the company with a ratio of $`r lambda`$ per year and will consider the following assumptions:
 
 \begin{itemize}
-\item The price of a small project will be $\$`r average.price`$ MNX in average with a standar deviation of $\$`r sd.price`$ MNX.
-\item The average development time of a small project will be $`r average.development.months`$ months.
-\item $`r advance.charge.rate`\times 100$ percent of the project will be charged in advance.
-\item $`r during.development.charge.rate`\times 100$ percent of the project will be charged monthly during the development.
-\item $`r final.charge.rate`\times 100$ percent of the project will be charged when the project is finished.
-\item $`r monthly.rent.rate`\times 100$ percent of the total price will be charged monthly for project maintenance.
+\item The price of the project will be $\$`r averagePrice`$ MXN in average with a standar deviation of $\$`r sdPrice`$ MXN and will have the following distribution:
+
+```{r, fig.align = "center"}
+ggplot(data.frame(x = c(0, 2 * averagePrice)), aes(x = x)) + 
+  stat_function(fun = dlnorm, args = list(mean = log(averagePrice), sd = 1 / log(sdPrice))) +
+  ggtitle("Price density function") +
+  labs(x = TeX('$x$'), y = TeX('$f_{Price}(x)$')) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_vline(xintercept = averagePrice)
+```
+
+The vertical line in the graph above represents the average price of the project. 
+
+\item The development time meaured in montsh will have the following discrete distribution:
+
+```{r, fig.align = "center"}
+vals <- c()
+for (i in 1:10000) {
+  val <- sampleFromMonthsDistribution(sop = sop, probs = probs)
+  vals <- c(vals, val)
+}
+ggplot(data.frame(vals), aes(x=vals)) + 
+  geom_histogram(aes(y = ..count../sum(..count..)), color="black", fill="white") +
+  geom_vline(xintercept = mean(vals))
+```
+
+The vertical line in the graph above represents the average development time of the project measured in months. 
+
+\item $`r advanceFeeRate`\times 100$ percent of the project will be charged in advance.
+\item $`r monthlyFeeRate`\times 100$ percent of the project will be charged monthly during the development.
+\item $`r finalFeeRate`\times 100$ percent of the project will be charged when the project is finished.
+\item $`r monthlyRentRate`\times 100$ percent of the total price will be charged monthly for project maintenance.
 \end{itemize}
 
-The positive cash flows that the company will obtain during the following $`r t`$ years due to small projects development will look similar to the following graph:
+The positive cash flows that the company will obtain during the following $`r t`$ years due to the development of these type of projects will look similar to the following graph:
 
 ```{r small projects cash flows graph, fig.align = "center"}
-value.small.projects[[3]]
+valueSmallProjects$Revenues
 ```
 
 Project arrivals to the company will look like the following graph:
 
-```{r small projects arrivals graph, fig.align = "center", fig.height = 1}
-value.small.projects[[4]]
-small.projects.value <- value.small.projects[[5]]
+```{r small projects arrivals graph, fig.align = "center", fig.width = 7, fig.asp = 0.2}
+valueSmallProjects$Arrivals
+smallProjectsValue <- valueSmallProjects$`Projects PV`
 ```
 
-Given the previous future cash flows, the present value of small projects development revenues is worth $\$`r small.projects.value`$ MNX.
+Given the previous future cash flows, the present value of the revenues of these projects is worth $\$`r smallProjectsValue`$ MXN.
 
 \section{Large projects}
 
-```{r large projects assumptions}
-  t=t # Lifetime of the company
+```{r large projects}
+# Princing of the project
+projectType="03LargeProjects" # Project type
+averagePrice=200000 # Expected price of the project
+sdPrice=70000 # Standar deviation of the price of the project
+lambda=2 # Expected number of projects developed in a year
+# Development time distribution
+sop=c(   10,   11,    12,    13,   14,   15,   16)
+probs=c(2/37,4/37,15/37,10/37,3/37,2/37,1/37)
+# Payment scheme
+advanceFeeRate=0.25 # Percentage of the final price that is paid at the begining of the project
+monthlyFeeRate=0.5 # Percentage of the final price that is paid during the development of the project
+finalFeeRate=0.25 # Percentage of the final price that is paid at the end of the development of the project
+monthlyRentRate=0.05 # Percentaje of the price of the project to be charged monthly for project maintenance
+  
+valueLargeProjects <- getProjectsCashFlows(
+  t,
   # Mexican economy
-  y=y # Annual interest rate
-  r=r # Inflation rate
-  # Princing of the project
-  average.price=200000 # Expected price of the project
-  sd.price=70000 # Standar deviation of the price of the project
-  minimum.price=100000 # Minimum price accepted for the project
-  average.development.months=7 # Expected development time of the project measured in months
-  lambda.po=2 # Expected number of projects developed in a year
+  y, # Annual interest rate
+  r, # Inflation rate
+  # Project
+  projectType, # Project type
+  averagePrice, # Expected price of the project
+  sdPrice, # Standar deviation of the price of the project
+  lambda, # Expected number of projects developed in a year
+  # Development time distribution
+  sop,
+  probs,
   # Payment scheme
-  advance.charge.rate=0.25 # Percentage of the final price that is paid at the begining of the project
-  during.development.charge.rate=0.5 # Percentage of the final price that is paid during the development of the project
-  final.charge.rate=0.25 # Percentage of the final price that is paid at the end of the development of the project
-  monthly.rent.rate=0.05 # Percentaje of the price of the project to be charged monthly for project maintenance
-
-value.large.projects <- getProjectPresentValue(
-  t=t, # Lifetime of the company
-  # Mexican economy
-  y=y, # Annual interest rate
-  r=r, # Inflation rate
-  # Princing of the project
-  average.price=average.price, # Expected price of the project
-  sd.price=sd.price, # Standar deviation of the price of the project
-  minimum.price=minimum.price, # Minimum price accepted for the project
-  average.development.months=average.development.months, # Expected development time of the project measured in months
-  lambda.po=lambda.po, # Expected number of projects developed in a year
-  # Payment scheme
-  advance.charge.rate=advance.charge.rate, # Percentage of the final price that is paid at the begining of the project
-  during.development.charge.rate=during.development.charge.rate, # Percentage of the final price that is paid during the development of the project
-  final.charge.rate=final.charge.rate, # Percentage of the final price that is paid at the end of the development of the project
-  monthly.rent.rate=monthly.rent.rate # Percentaje of the price of the project to be charged monthly for project maintenance
+  advanceFeeRate, # Percentage of the final price that is paid at the begining of the project
+  monthlyFeeRate, # Percentage of the final price that is paid during the development of the project
+  finalFeeRate, # Percentage of the final price that is paid at the end of the development of the project
+  monthlyRentRate # Percentaje of the price of the project to be charged monthly for project maintenance
 )
 ```
 
-Large projects will arrive to the company with a ratio of $`r lambda.po`$ per year and will consider the following assumptions:
+These type of projects will arrive to the company with a ratio of $`r lambda`$ per year and will consider the following assumptions:
 
 \begin{itemize}
-\item The price of a large project will be $\$`r average.price`$ MNX in average with a standar deviation of $\$`r sd.price`$ MNX .
-\item The average development time of a large project will be $`r average.development.months`$ months.
-\item $`r advance.charge.rate`\times 100$ percent of the project will be charged in advance.
-\item $`r during.development.charge.rate`\times 100$ percent of the project will be charged monthly during the development.
-\item $`r final.charge.rate`\times 100$ percent of the project will be charged when the project is finished.
-\item $`r monthly.rent.rate`\times 100$ percent of the total price will be charged monthly for project maintenance.
+\item The price of the project will be $\$`r averagePrice`$ MXN in average with a standar deviation of $\$`r sdPrice`$ MXN and will have the following distribution:
+
+```{r, fig.align = "center"}
+ggplot(data.frame(x = c(0, 2 * averagePrice)), aes(x = x)) + 
+  stat_function(fun = dlnorm, args = list(mean = log(averagePrice), sd = 1 / log(sdPrice))) +
+  ggtitle("Price density function") +
+  labs(x = TeX('$x$'), y = TeX('$f_{Price}(x)$')) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_vline(xintercept = averagePrice)
+```
+
+The vertical line in the graph above represents the average price of the project. 
+
+\item The development time meaured in montsh will have the following discrete distribution:
+
+```{r, fig.align = "center"}
+vals <- c()
+for (i in 1:10000) {
+  val <- sampleFromMonthsDistribution(sop = sop, probs = probs)
+  vals <- c(vals, val)
+}
+ggplot(data.frame(vals), aes(x=vals)) + 
+  geom_histogram(aes(y = ..count../sum(..count..)), color="black", fill="white") +
+  geom_vline(xintercept = mean(vals))
+```
+
+The vertical line in the graph above represents the average development time of the project measured in months. 
+
+\item $`r advanceFeeRate`\times 100$ percent of the project will be charged in advance.
+\item $`r monthlyFeeRate`\times 100$ percent of the project will be charged monthly during the development.
+\item $`r finalFeeRate`\times 100$ percent of the project will be charged when the project is finished.
+\item $`r monthlyRentRate`\times 100$ percent of the total price will be charged monthly for project maintenance.
 \end{itemize}
 
-The positive cash flows that the company will obtain during the following $`r t`$ years due to large projects development will look similar to the following graph:
+The positive cash flows that the company will obtain during the following $`r t`$ years due to the development of these type of projects will look similar to the following graph:
 
 ```{r large projects cash flows graph, fig.align = "center"}
-value.large.projects[[3]]
+valueLargeProjects$Revenues
 ```
 
 Project arrivals to the company will look like the following graph:
 
-```{r large projects arrivals graph, fig.align = "center", fig.height = 1}
-value.large.projects[[4]]
-large.projects.value <- value.large.projects[[5]]
+```{r large projects arrivals graph, fig.align = "center", fig.width = 7, fig.asp = 0.2}
+valueLargeProjects$Arrivals
+largeProjectsValue <- valueLargeProjects$`Projects PV`
 ```
 
-Given the previous future cash flows, the present value of large projects development revenues is worth $\$`r large.projects.value`$ MNX.
+Given the previous future cash flows, the present value of the revenues of these projects is worth $\$`r largeProjectsValue`$ MXN.
 
 \section{Enterprise projects}
 
-```{r Enterprice projects assumptions}
-  t=t # Lifetime of the company
+```{r Enterprice projects}
+# Princing of the project
+projectType="04EnterpriceProjects" # Project type
+averagePrice=1600000 # Expected price of the project
+sdPrice=200000 # Standar deviation of the price of the project
+lambda=1 # Expected number of projects developed in a year
+# Development time distribution
+sop=c(   13,   14,    15,    16,   17,   18,   19)
+probs=c(2/37,4/37,15/37,10/37,3/37,2/37,1/37)
+# Payment scheme
+advanceFeeRate=0.25 # Percentage of the final price that is paid at the begining of the project
+monthlyFeeRate=0.5 # Percentage of the final price that is paid during the development of the project
+finalFeeRate=0.25 # Percentage of the final price that is paid at the end of the development of the project
+monthlyRentRate=0.05 # Percentaje of the price of the project to be charged monthly for project maintenance
+  
+valueEnterpriceProjects <- getProjectsCashFlows(
+  t,
   # Mexican economy
-  y=y # Annual interest rate
-  r=r # Inflation rate
-  # Princing of the project
-  average.price=1600000 # Expected price of the project
-  sd.price=200000 # Standar deviation of the price of the project
-  minimum.price=500000 # Minimum price accepted for the project
-  average.development.months=13 # Expected development time of the project measured in months
-  lambda.po=1 # Expected number of projects developed in a year
+  y, # Annual interest rate
+  r, # Inflation rate
+  # Project
+  projectType, # Project type
+  averagePrice, # Expected price of the project
+  sdPrice, # Standar deviation of the price of the project
+  lambda, # Expected number of projects developed in a year
+  # Development time distribution
+  sop,
+  probs,
   # Payment scheme
-  advance.charge.rate=0.25 # Percentage of the final price that is paid at the begining of the project
-  during.development.charge.rate=0.5 # Percentage of the final price that is paid during the development of the project
-  final.charge.rate=0.25 # Percentage of the final price that is paid at the end of the development of the project
-  monthly.rent.rate=0.05 # Percentaje of the price of the project to be charged monthly for project maintenance
-
-value.enterprice.projects <- getProjectPresentValue(
-  t=t, # Lifetime of the company
-  # Mexican economy
-  y=y, # Annual interest rate
-  r=r, # Inflation rate
-  # Princing of the project
-  average.price=average.price, # Expected price of the project
-  sd.price=sd.price, # Standar deviation of the price of the project
-  minimum.price=minimum.price, # Minimum price accepted for the project
-  average.development.months=average.development.months, # Expected development time of the project measured in months
-  lambda.po=lambda.po, # Expected number of projects developed in a year
-  # Payment scheme
-  advance.charge.rate=advance.charge.rate, # Percentage of the final price that is paid at the begining of the project
-  during.development.charge.rate=during.development.charge.rate, # Percentage of the final price that is paid during the development of the project
-  final.charge.rate=final.charge.rate, # Percentage of the final price that is paid at the end of the development of the project
-  monthly.rent.rate=monthly.rent.rate # Percentaje of the price of the project to be charged monthly for project maintenance
+  advanceFeeRate, # Percentage of the final price that is paid at the begining of the project
+  monthlyFeeRate, # Percentage of the final price that is paid during the development of the project
+  finalFeeRate, # Percentage of the final price that is paid at the end of the development of the project
+  monthlyRentRate # Percentaje of the price of the project to be charged monthly for project maintenance
 )
 ```
 
-Enterprice projects will arrive to the company with a ratio of $`r lambda.po`$ per year and will consider the following assumptions:
+These type of projects will arrive to the company with a ratio of $`r lambda`$ per year and will consider the following assumptions:
 
 \begin{itemize}
-\item The price of an enterprice project will be $\$`r average.price`$ MNX in average with a standar deviation of $\$`r sd.price`$ MNX.
-\item The average development time of an enterprice project will be $`r average.development.months`$ months.
-\item $`r advance.charge.rate`\times 100$ percent of the project will be charged in advance.
-\item $`r during.development.charge.rate`\times 100$ percent of the project will be charged monthly during the development.
-\item $`r final.charge.rate`\times 100$ percent of the project will be charged when the project is finished.
-\item $`r monthly.rent.rate`\times 100$ percent of the total price will be charged monthly for project maintenance.
+\item The price of the project will be $\$`r averagePrice`$ MXN in average with a standar deviation of $\$`r sdPrice`$ MXN and will have the following distribution:
+
+```{r, fig.align = "center"}
+ggplot(data.frame(x = c(0, 2 * averagePrice)), aes(x = x)) + 
+  stat_function(fun = dlnorm, args = list(mean = log(averagePrice), sd = 1 / log(sdPrice))) +
+  ggtitle("Price density function") +
+  labs(x = TeX('$x$'), y = TeX('$f_{Price}(x)$')) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_vline(xintercept = averagePrice)
+```
+
+The vertical line in the graph above represents the average price of the project. 
+
+\item The development time meaured in montsh will have the following discrete distribution:
+
+```{r, fig.align = "center"}
+vals <- c()
+for (i in 1:10000) {
+  val <- sampleFromMonthsDistribution(sop = sop, probs = probs)
+  vals <- c(vals, val)
+}
+ggplot(data.frame(vals), aes(x=vals)) + 
+  geom_histogram(aes(y = ..count../sum(..count..)), color="black", fill="white") +
+  geom_vline(xintercept = mean(vals))
+```
+
+The vertical line in the graph above represents the average development time of the project measured in months. 
+
+\item $`r advanceFeeRate`\times 100$ percent of the project will be charged in advance.
+\item $`r monthlyFeeRate`\times 100$ percent of the project will be charged monthly during the development.
+\item $`r finalFeeRate`\times 100$ percent of the project will be charged when the project is finished.
+\item $`r monthlyRentRate`\times 100$ percent of the total price will be charged monthly for project maintenance.
 \end{itemize}
 
-The positive cash flows that the company will obtain during the following $`r t`$ years due to enterprice projects development will look similar to the following graph:
+The positive cash flows that the company will obtain during the following $`r t`$ years due to the development of these type of projects will look similar to the following graph:
 
 ```{r enterprice projects cash flows graph, fig.align = "center"}
-value.enterprice.projects[[3]]
+valueEnterpriceProjects$Revenues
 ```
 
 Project arrivals to the company will look like the following graph:
 
-```{r enterprice projects arrivals graph, fig.align = "center", fig.height = 1}
-value.enterprice.projects[[4]]
-enterprice.projects.value <- value.enterprice.projects[[5]]
+```{r enterprice projects arrivals graph, fig.align = "center", fig.width = 7, fig.asp = 0.2}
+valueEnterpriceProjects$Arrivals
+enterpriceProjectsValue <- valueEnterpriceProjects$`Projects PV`
 ```
 
-Given the previous future cash flows, the present value of enterprice projects development revenues is worth $\$`r enterprice.projects.value`$ MNX.
+Given the previous future cash flows, the present value of the revenues of these projects is worth $\$`r enterpriceProjectsValue`$ MXN.
 
 \section{Inhouse projects}
 
-```{r inhouse projects assumptions}
-  t=t # Lifetime of the company
+```{r inhouse projects}
+# Project
+projectType="05InhouseProjects" # Project type
+lambda=1 # Expected number of projects developed in a year
+# Development time distribution
+sop=c(   10,   11,    12,    13,   14,   15,   16)
+probs=c(2/37,4/37,15/37,10/37,3/37,2/37,1/37)
+# Payment scheme
+averageMonthlyRent=400000 # Project average monthly rent
+sdMonthlyRent=100000 # Project monthly rent standar deviation
+  
+valueInhouseProjects <- getInhouseProjectsCashFlows(
+  t, # Lifetime of the company
   # Mexican economy
-  y=y # Annual interest rate
-  r=r # Inflation rate
-  # Project details
-  lambda.po=5 # Expected number of projects developed in a year
-  average.development.months=14 # Expected development time of the project measured in months
-  # Revenue scheme
-  average.monthly.rent=400000 # Expected value of the monthly rent that the project will generate
-  sd.monthly.rent=100000 # Standar deviation of the monthly rent that the project will generate
-
-value.inhouse.projects <- getInhouseProjectPresentValue(
-  t=t, # Lifetime of the company
-  # Mexican economy
-  y=y, # Annual interest rate
-  r=r, # Inflation rate
-  # Project details
-  lambda.po=lambda.po, # Expected number of projects developed in a year
-  average.development.months=average.development.months, # Expected development time of the project measured in months
-  # Revenue scheme
-  average.monthly.rent=average.monthly.rent, # Expected value of the monthly rent that the project will generate
-  sd.monthly.rent=sd.monthly.rent # Standar deviation of the monthly rent that the project will generate
+  y, # Annual interest rate
+  r, # Inflation rate
+  # Project
+  projectType, # Project type
+  lambda, # Expected number of projects developed in a year
+  # Development time distribution
+  sop,
+  probs,
+  # Payment scheme
+  averageMonthlyRent, # Project average monthly rent
+  sdMonthlyRent # Project monthly rent standar deviation
 )
 ```
 
-Inhouse projects will arrive to the company with a ratio of $`r lambda.po`$ per year and will consider the following assumptions:
+Inhouse projects will arrive to the company with a ratio of $`r lambda`$ per year and will consider the following assumptions:
 
 \begin{itemize}
-\item The average development time of a project will be $`r average.development.months`$. months. 
-\item The revenue generated by an inhouse project will be $\$`r average.monthly.rent`$ MNX in average with an standard deviation of $\$`r sd.monthly.rent`$ MNX.
+\item The development time meaured in montsh will have the following discrete distribution:
+
+```{r, fig.align = "center"}
+vals <- c()
+for (i in 1:10000) {
+  val <- sampleFromMonthsDistribution(sop = sop, probs = probs)
+  vals <- c(vals, val)
+}
+ggplot(data.frame(vals), aes(x=vals)) + 
+  geom_histogram(aes(y = ..count../sum(..count..)), color="black", fill="white") +
+  geom_vline(xintercept = mean(vals))
+```
+
+The vertical line in the graph above represents the average development time of the project measured in months. 
+
+\item The monthly revenue generated by an inhouse project will be $\$`r averageMonthlyRent`$ MXN in average with an standard deviation of $\$`r sdMonthlyRent`$ MXN.
 \end{itemize}
 
 The positive cash flows that the company will obtain during the following $`r t`$ years due to inhouse projects development will look similar to the following graph:
 
 ```{r inhouse projects cash flows graph, fig.align = "center"}
-value.inhouse.projects[[3]]
+valueInhouseProjects$Revenues
 ```
 
 Project arrivals to the company will look like the following graph:
 
-```{r inhouse projects arrivals graph, fig.align = "center", fig.height = 1}
-value.inhouse.projects[[4]]
-inhouse.projects.value <- value.inhouse.projects[[5]]
+```{r inhouse projects arrivals graph, fig.align = "center", fig.width = 7, fig.asp = 0.2}
+valueInhouseProjects$Arrivals
+inhouseProjectsValue <- valueInhouseProjects$`Projects PV`
 ```
 
-Given the previous future cash flows, the present value of inhouse projects development revenues is worth $\$`r inhouse.projects.value`$ MNX.
+Given the previous future cash flows, the present value of inhouse projects development revenues is worth $\$`r inhouseProjectsValue`$ MXN.
 
 \section{Valuation}
 
 ```{r net worth}
-net.worth <- landigs.projects.value + small.projects.value + large.projects.value + enterprice.projects.value + inhouse.projects.value
+netWorth <- landigsProjectsValue + smallProjectsValue + largeProjectsValue + enterpriceProjectsValue + inhouseProjectsValue
 ```
 
-Summing up the net present value of all company's projects the net worth of the company es given by  $\$`r net.worth`$ MNX.
+Summing up the net present value of all company's projects the net worth of the company es given by  $\$`r netWorth`$ MXN.
