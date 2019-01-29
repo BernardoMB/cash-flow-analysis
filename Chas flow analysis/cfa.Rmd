@@ -13,7 +13,7 @@ knitr::opts_chunk$set(message = FALSE)
 # Load libraries
 library(lubridate)
 library(ggplot2)
-library(latex2exp  )
+library(latex2exp)
 # Avoid scientific notation
 options(scipen = 999)
 ```
@@ -378,7 +378,7 @@ These type of projects will arrive to the company with a ratio of $`r lambda`$ p
 \begin{itemize}
 \item The price of the project will be $\$`r averagePrice`$ MXN in average with a standar deviation of $\$`r sdPrice`$ MXN and will have the following distribution:
 
-```{r, fig.align = "center", }
+```{r landings price distribution, fig.align="center", fig.width=4, fig.height=2}
 ggplot(data.frame(x = c(0, 2 * averagePrice)), aes(x = x)) + 
   stat_function(fun = dlnorm, args = list(mean = log(averagePrice), sd = 1 / log(sdPrice))) +
   ggtitle("Price density function") +
@@ -391,7 +391,7 @@ The vertical line in the graph above represents the average price of the project
 
 \item The development time meaured in montsh of the project will have the following discrete distribution:
 
-```{r, fig.align = "center"}
+```{r landings time distribution, fig.align = "center", fig.width=4, fig.height=2}
 vals <- c()
 for (i in 1:10000) {
   val <- sampleFromMonthsDistribution(sop = sop, probs = probs)
@@ -399,7 +399,10 @@ for (i in 1:10000) {
 }
 ggplot(data.frame(vals), aes(x=vals)) + 
   geom_histogram(aes(y = ..count../sum(..count..)), color="black", fill="white") +
-  geom_vline(xintercept = mean(vals))
+  geom_vline(xintercept = mean(vals)) +
+  ggtitle("Months probability law") +
+  labs(x = TeX('$m (month)$'), y = TeX('$Pr(M=m)$')) +
+  theme(plot.title = element_text(hjust = 0.5))
 ```
 
 The vertical line in the graph above represents the average development time of the project measured in months. 
@@ -465,7 +468,7 @@ These type of projects will arrive to the company with a ratio of $`r lambda`$ p
 \begin{itemize}
 \item The price of the project will be $\$`r averagePrice`$ MXN in average with a standar deviation of $\$`r sdPrice`$ MXN and will have the following distribution:
 
-```{r, fig.align = "center"}
+```{r small projects price distribution, fig.align="center", fig.width=4, fig.height=2}
 ggplot(data.frame(x = c(0, 2 * averagePrice)), aes(x = x)) + 
   stat_function(fun = dlnorm, args = list(mean = log(averagePrice), sd = 1 / log(sdPrice))) +
   ggtitle("Price density function") +
@@ -478,7 +481,7 @@ The vertical line in the graph above represents the average price of the project
 
 \item The development time meaured in montsh will have the following discrete distribution:
 
-```{r, fig.align = "center"}
+```{r small projects time distribution, fig.align = "center", fig.width=4, fig.height=2}
 vals <- c()
 for (i in 1:10000) {
   val <- sampleFromMonthsDistribution(sop = sop, probs = probs)
@@ -486,7 +489,10 @@ for (i in 1:10000) {
 }
 ggplot(data.frame(vals), aes(x=vals)) + 
   geom_histogram(aes(y = ..count../sum(..count..)), color="black", fill="white") +
-  geom_vline(xintercept = mean(vals))
+  geom_vline(xintercept = mean(vals)) +
+  ggtitle("Months probability law") +
+  labs(x = TeX('$m (month)$'), y = TeX('$Pr(M=m)$')) +
+  theme(plot.title = element_text(hjust = 0.5))
 ```
 
 The vertical line in the graph above represents the average development time of the project measured in months. 
@@ -555,7 +561,7 @@ These type of projects will arrive to the company with a ratio of $`r lambda`$ p
 \begin{itemize}
 \item The price of the project will be $\$`r averagePrice`$ MXN in average with a standar deviation of $\$`r sdPrice`$ MXN and will have the following distribution:
 
-```{r, fig.align = "center"}
+```{r large projects price distribution, fig.align="center", fig.width=4, fig.height=2}
 ggplot(data.frame(x = c(0, 2 * averagePrice)), aes(x = x)) + 
   stat_function(fun = dlnorm, args = list(mean = log(averagePrice), sd = 1 / log(sdPrice))) +
   ggtitle("Price density function") +
@@ -568,7 +574,7 @@ The vertical line in the graph above represents the average price of the project
 
 \item The development time meaured in montsh will have the following discrete distribution:
 
-```{r, fig.align = "center"}
+```{r large projects time distribution, fig.align = "center", fig.width=4, fig.height=2}
 vals <- c()
 for (i in 1:10000) {
   val <- sampleFromMonthsDistribution(sop = sop, probs = probs)
@@ -576,7 +582,10 @@ for (i in 1:10000) {
 }
 ggplot(data.frame(vals), aes(x=vals)) + 
   geom_histogram(aes(y = ..count../sum(..count..)), color="black", fill="white") +
-  geom_vline(xintercept = mean(vals))
+  geom_vline(xintercept = mean(vals)) +
+  ggtitle("Months probability law") +
+  labs(x = TeX('$m (month)$'), y = TeX('$Pr(M=m)$')) +
+  theme(plot.title = element_text(hjust = 0.5))
 ```
 
 The vertical line in the graph above represents the average development time of the project measured in months. 
@@ -645,7 +654,7 @@ These type of projects will arrive to the company with a ratio of $`r lambda`$ p
 \begin{itemize}
 \item The price of the project will be $\$`r averagePrice`$ MXN in average with a standar deviation of $\$`r sdPrice`$ MXN and will have the following distribution:
 
-```{r, fig.align = "center"}
+```{r enterprice projects price distribution, fig.align="center", fig.width=4, fig.height=2}
 ggplot(data.frame(x = c(0, 2 * averagePrice)), aes(x = x)) + 
   stat_function(fun = dlnorm, args = list(mean = log(averagePrice), sd = 1 / log(sdPrice))) +
   ggtitle("Price density function") +
@@ -658,7 +667,7 @@ The vertical line in the graph above represents the average price of the project
 
 \item The development time meaured in montsh will have the following discrete distribution:
 
-```{r, fig.align = "center"}
+```{r enterprice projects time distribution, fig.align = "center", fig.width=4, fig.height=2}
 vals <- c()
 for (i in 1:10000) {
   val <- sampleFromMonthsDistribution(sop = sop, probs = probs)
@@ -666,7 +675,10 @@ for (i in 1:10000) {
 }
 ggplot(data.frame(vals), aes(x=vals)) + 
   geom_histogram(aes(y = ..count../sum(..count..)), color="black", fill="white") +
-  geom_vline(xintercept = mean(vals))
+  geom_vline(xintercept = mean(vals)) +
+  ggtitle("Months probability law") +
+  labs(x = TeX('$m (month)$'), y = TeX('$Pr(M=m)$')) +
+  theme(plot.title = element_text(hjust = 0.5))
 ```
 
 The vertical line in the graph above represents the average development time of the project measured in months. 
@@ -727,7 +739,7 @@ Inhouse projects will arrive to the company with a ratio of $`r lambda`$ per yea
 \begin{itemize}
 \item The development time meaured in montsh will have the following discrete distribution:
 
-```{r, fig.align = "center"}
+```{r Iinhouse projects time distribution, fig.align = "center", fig.width=4, fig.height=2}
 vals <- c()
 for (i in 1:10000) {
   val <- sampleFromMonthsDistribution(sop = sop, probs = probs)
@@ -735,7 +747,10 @@ for (i in 1:10000) {
 }
 ggplot(data.frame(vals), aes(x=vals)) + 
   geom_histogram(aes(y = ..count../sum(..count..)), color="black", fill="white") +
-  geom_vline(xintercept = mean(vals))
+  geom_vline(xintercept = mean(vals)) +
+  ggtitle("Months probability law") +
+  labs(x = TeX('$m (month)$'), y = TeX('$Pr(M=m)$')) +
+  theme(plot.title = element_text(hjust = 0.5))
 ```
 
 The vertical line in the graph above represents the average development time of the project measured in months. 

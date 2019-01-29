@@ -122,15 +122,35 @@ for (i in 1:t) {
   annualRevenues <- rbind(annualRevenues, entry, stringsAsFactors = FALSE)
 }
 names(annualRevenues) <- c("Period", "Monthly rents")
-write.csv(t(annualRevenues), file=paste(projectType,"RevenueData.csv",sep=""))
+write.csv(t(annualRevenues), file=paste(projectType,"AnnualRevenueData.csv",sep=""))
+
+# Get monthly revenues
+monthlyRevenues <- data.frame()
+operationMonths <- t * 12
+for (i in 1:operationMonths) {
+  lowerBound <- sumMonths(now, i - 1)
+  upperBound <- sumMonths(lowerBound, 1)
+  df <- positiveFlows[lowerBound <= as_date(positiveFlows$Date) & as_date(positiveFlows$Date) < upperBound,]
+  total.advance.payments <- sum(df[df$Concept %in% c("Advance fee"),]$Amount)
+  total.monthly.payments <- sum(df[df$Concept %in% c("Monthly fee"),]$Amount)
+  total.final.payments <- sum(df[df$Concept %in% c("Final fee"),]$Amount)
+  total.rent.payments <- sum(df[df$Concept %in% c("Monthly rent"),]$Amount)
+  period <- lowerBound %--% upperBound
+  entry <- list(i, as.factor(period), total.advance.payments, total.monthly.payments, total.final.payments, total.rent.payments)
+  monthlyRevenues <- rbind(monthlyRevenues, entry, stringsAsFactors = FALSE)
+}
+names(monthlyRevenues) <- c("Month", "Period","Advance fees","Monthly fees","Final fees","Monthly rents")
+write.csv(t(monthlyRevenues), file=paste(projectType,"MonthlyRevenueData.csv",sep=""))
+
 result <- list(
   positiveFlows,
   projectsPresentValue,
   annualRevenues,
+  monthlyRevenues,
   revenuesPlot,
   arrivalsPlot
 )
-names(result) <- c("Flows", "Projects PV", "Annual revenues", "Revenues", "Arrivals")
+names(result) <- c("Flows", "Projects PV", "Annual revenues", "Monthly revenues", "Revenues", "Arrivals")
 
 
 
