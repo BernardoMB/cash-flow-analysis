@@ -1,31 +1,9 @@
 library(ggplot2)
 library(lubridate)
 
-## Utility functions
+source("Cash flow analysis/utils.R")
 
-sampleFromMonthsDistribution <- function(sop, probs) {
-  if (sum(probs) != 1) {
-    stop(paste("Probs should add up 1. Got ", sum(probs)))
-  }
-  probsAc <- cumsum(probs)
-  unif <- runif(1)
-  for (i in 1:length(probsAc)) {
-    if (unif < probsAc[i]) {
-      return(sop[i])
-    }  
-  }
-}
-
-sumMonths <- function(date, months) {
-  result <- date + lubridate:::months.numeric(months)
-  if (is.na(result)) {
-    result <- date + lubridate:::days(3) + lubridate:::months.numeric(months)
-    return(result)
-  }
-  return(result)
-}
-
-# ---- Algorithm ----
+# ---- Inhouse projects algorithm ----
 
 t=5 # Lifetime of the company
 # Mexican economy

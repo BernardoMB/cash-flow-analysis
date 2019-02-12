@@ -3,29 +3,7 @@
 library(ggplot2)
 library(lubridate)
 
-# ---- Utility functions ----
-
-sampleFromMonthsDistribution <- function(sop, probs) {
-  if (sum(probs) != 1) {
-    stop(paste("Probs should add up 1. Got ", sum(probs)))
-  }
-  probsAc <- cumsum(probs)
-  unif <- runif(1)
-  for (i in 1:length(probsAc)) {
-    if (unif < probsAc[i]) {
-      return(sop[i])
-    }  
-  }
-}
-
-sumMonths <- function(date, months) {
-  result <- date + lubridate:::months.numeric(months)
-  if (is.na(result)) {
-    result <- date + lubridate:::days(3) + lubridate:::months.numeric(months)
-    return(result)
-  }
-  return(result)
-}
+source("utils.R")
 
 # ---- Projects ----
 
@@ -72,7 +50,7 @@ getProjectsCashFlows <- function(
       monthlyFee <- adjustedPrice * monthlyFeeRate / developmentMonths
       endDate <- sumMonths(arrivalDate, developmentMonths)
       if (endDate < valuationPeriodEndDate) {
-        # Case 1
+        # Case 1: project development finishes before valuation period ends
         for (i in 1:developmentMonths) {
           monthlyFeeDate <- sumMonths(arrivalDate, i)
           entry <- list(monthlyFeeDate, monthlyFee, TRUE, "Monthly fee")
@@ -104,7 +82,7 @@ getProjectsCashFlows <- function(
         presentValue <- advanceFeePresentValue + monthlyFeesPresentValue + finalFeePresentValue + monthlyRentsPresentValue
         presentValues <- c(presentValues, presentValue)
       } else {
-        # Case 2
+        # Case 2: project development finishes after valuation period ends
         count <- 1
         repeat {
           monthlyFeeDate <- sumMonths(arrivalDate, count)
