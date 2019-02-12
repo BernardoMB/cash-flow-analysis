@@ -27,7 +27,7 @@ sumMonths <- function(date, months) {
   return(result)
 }
 
-# ---- Functions ----
+# ---- Projects ----
 
 getProjectsCashFlows <- function(
   t, # Lifetime of the company
@@ -52,7 +52,7 @@ getProjectsCashFlows <- function(
   y12 <- ( 1 + y ) ^ ( 1 / 12) - 1
   time <- 0
   arrivalTime <- 0
-  positiveFlows <- data.frame()
+  revenues <- data.frame()
   now <- as_date(Sys.time())
   valuationPeriodEndDate <- now + years(t)
   presentValues <- c()
@@ -67,7 +67,7 @@ getProjectsCashFlows <- function(
       arrivalTimeInSeconds <- as.numeric(duration(arrivalTime, unit = "years"))
       arrivalDate <- as_date(now + seconds(arrivalTimeInSeconds))
       entry <- list(arrivalDate, advanceFee, TRUE, "Advance fee")
-      positiveFlows <- rbind(positiveFlows, entry, stringsAsFactors = FALSE)
+      revenues <- rbind(revenues, entry, stringsAsFactors = FALSE)
       developmentMonths <- sampleFromMonthsDistribution(sop = sop, probs = probs)
       monthlyFee <- adjustedPrice * monthlyFeeRate / developmentMonths
       endDate <- sumMonths(arrivalDate, developmentMonths)
@@ -75,13 +75,12 @@ getProjectsCashFlows <- function(
         # Case 1
         for (i in 1:developmentMonths) {
           monthlyFeeDate <- sumMonths(arrivalDate, i)
-          
           entry <- list(monthlyFeeDate, monthlyFee, TRUE, "Monthly fee")
-          positiveFlows <- rbind(positiveFlows, entry, stringsAsFactors = FALSE)
+          revenues <- rbind(revenues, entry, stringsAsFactors = FALSE)
         }
         finalFee <- adjustedPrice * finalFeeRate
         entry <- list(endDate, finalFee, TRUE, "Final fee")
-        positiveFlows <- rbind(positiveFlows, entry, stringsAsFactors = FALSE)
+        revenues <- rbind(revenues, entry, stringsAsFactors = FALSE)
         count <- 1
         monthlyRent <- adjustedPrice * monthlyRentRate
         repeat {
@@ -90,7 +89,7 @@ getProjectsCashFlows <- function(
             break
           }
           entry <- list(monthlyRentDate, monthlyRent, TRUE, "Monthly rent")
-          positiveFlows <- rbind(positiveFlows, entry, stringsAsFactors = FALSE)
+          revenues <- rbind(revenues, entry, stringsAsFactors = FALSE)
           count <- count + 1
         }
         rentMonths <- count - 1
@@ -113,7 +112,7 @@ getProjectsCashFlows <- function(
             break
           }
           entry <- list(monthlyFeeDate, monthlyFee, TRUE, "Monthly fee")
-          positiveFlows <- rbind(positiveFlows, entry, stringsAsFactors = FALSE)
+          revenues <- rbind(revenues, entry, stringsAsFactors = FALSE)
           count <- count + 1
         }
         discountFactor <- 1 / (1 + y) ^ arrivalTime
@@ -126,27 +125,27 @@ getProjectsCashFlows <- function(
       }
     }
   }
-  names(positiveFlows) <- c("Date","Amount","Income","Concept")
+  names(revenues) <- c("Date","Amount","Money MXN","Concept")
   breaksVec <- c(seq(from=floor_date(as_date(Sys.time()), unit="month"),
-                     to=ceiling_date(max(as_date(positiveFlows$Date)), unit="month"),
+                     to=ceiling_date(max(as_date(revenues$Date)), unit="month"),
                      by="6 months"))
   coloresChidos <- c("hotpink", "gold", "darkorange", "coral4")
-  revenuesPlot <- ggplot(data=positiveFlows, aes(x=as_date(positiveFlows$Date), y=positiveFlows$Amount)) +
+  revenuesPlot <- ggplot(data=revenues, aes(x=as_date(revenues$Date), y=revenues$Amount)) +
     geom_point(color="blue", size=0.5) + 
-    ylim(c(0,max(positiveFlows$Amount)+1000)) +
-    xlim(c(as_date(Sys.time()),max(as_date(positiveFlows$Date)))) +
-    labs(title="Revenues", x="Time (years)", y="Income") +
-    geom_linerange(aes(x=as_date(positiveFlows$Date), ymax=positiveFlows$Amount, ymin=0, color=positiveFlows$Concept)) +
-    guides(color=guide_legend(title="Types of income")) +
+    ylim(c(0,max(revenues$Amount)+1000)) +
+    xlim(c(as_date(Sys.time()),max(as_date(revenues$Date)))) +
+    labs(title="Revenues", x="Time", y="Money MXN") +
+    geom_linerange(aes(x=as_date(revenues$Date), ymax=revenues$Amount, ymin=0, color=revenues$Concept)) +
+    guides(color=guide_legend(title="Types of Money MXN")) +
     scale_x_date(breaks = breaksVec, date_minor_breaks = "1 month", limits = c(as_date(Sys.time()), NA)) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  #geom_linerange(aes(x=as_datetime(positiveFlows$Date), ymax=positiveFlows$Amount, ymin=0), color="#00AFBB") +
-  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Advance fee"),]$Amount), size=1, color=coloresChidos[1]) +
-  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Monthly fee"),]$Amount), size=1, color=coloresChidos[2]) +
-  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Final fee"),]$Amount), size=1, color=coloresChidos[3]) +
-  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Monthly rent"),]$Amount), size=1, color=coloresChidos[4]) +
+  #geom_linerange(aes(x=as_datetime(revenues$Date), ymax=revenues$Amount, ymin=0), color="#00AFBB") +
+  #geom_hline(yintercept=mean(revenues[revenues$Concept %in% c("Advance fee"),]$Amount), size=1, color=coloresChidos[1]) +
+  #geom_hline(yintercept=mean(revenues[revenues$Concept %in% c("Monthly fee"),]$Amount), size=1, color=coloresChidos[2]) +
+  #geom_hline(yintercept=mean(revenues[revenues$Concept %in% c("Final fee"),]$Amount), size=1, color=coloresChidos[3]) +
+  #geom_hline(yintercept=mean(revenues[revenues$Concept %in% c("Monthly rent"),]$Amount), size=1, color=coloresChidos[4]) +
   #scale_color_manual(values=coloresChidos)
-  arrivalsDf <- positiveFlows[positiveFlows$Concept %in% c("Advance fee"),]
+  arrivalsDf <- revenues[revenues$Concept %in% c("Advance fee"),]
   arrivalsPlot <- ggplot(data=arrivalsDf, aes(x=as_date(arrivalsDf$Date), y=c(0))) + 
     ylim(c(0,0)) +
     labs(title="Project arrivals", x="Time", y="") +
@@ -162,17 +161,17 @@ getProjectsCashFlows <- function(
   for (i in 1:t) {
     lowerBound <- now + lubridate:::years(i - 1)
     upperBound <- lowerBound + lubridate:::years(1)
-    df <- positiveFlows[lowerBound <= as_date(positiveFlows$Date) & as_date(positiveFlows$Date) < upperBound,]
+    df <- revenues[lowerBound <= as_date(revenues$Date) & as_date(revenues$Date) < upperBound,]
     total.advance.payments <- sum(df[df$Concept %in% c("Advance fee"),]$Amount)
     total.monthly.payments <- sum(df[df$Concept %in% c("Monthly fee"),]$Amount)
     total.final.payments <- sum(df[df$Concept %in% c("Final fee"),]$Amount)
     total.rent.payments <- sum(df[df$Concept %in% c("Monthly rent"),]$Amount)
-    period <- lowerBound %--% upperBound
-    entry <- list(as.factor(period), total.advance.payments, total.monthly.payments, total.final.payments, total.rent.payments)
+    #period <- lowerBound %--% upperBound
+    entry <- list(i, as.factor(lowerBound), as.factor(upperBound), total.advance.payments, total.monthly.payments, total.final.payments, total.rent.payments)
     annualRevenues <- rbind(annualRevenues, entry, stringsAsFactors = FALSE)
   }
-  names(annualRevenues) <- c("Period","Advance fees","Monthly fees","Final fees","Monthly rents")
-  write.csv(annualRevenues, file=paste(projectType,"RevenueData.csv",sep=""))
+  names(annualRevenues) <- c("Year", "Start date", "End date", "Advance fees", "Monthly fees", "Final fees", "Monthly rents")
+  #write.csv(t(annualRevenues), file=paste("ExcelData/", projectType, "AnnualRevenueData.csv", sep=""))
   
   # Get monthly revenues
   monthlyRevenues <- data.frame()
@@ -180,30 +179,32 @@ getProjectsCashFlows <- function(
   for (i in 1:operationMonths) {
     lowerBound <- sumMonths(now, i - 1)
     upperBound <- sumMonths(lowerBound, 1)
-    df <- positiveFlows[lowerBound <= as_date(positiveFlows$Date) & as_date(positiveFlows$Date) < upperBound,]
+    df <- revenues[lowerBound <= as_date(revenues$Date) & as_date(revenues$Date) < upperBound,]
     total.advance.payments <- sum(df[df$Concept %in% c("Advance fee"),]$Amount)
     total.monthly.payments <- sum(df[df$Concept %in% c("Monthly fee"),]$Amount)
     total.final.payments <- sum(df[df$Concept %in% c("Final fee"),]$Amount)
     total.rent.payments <- sum(df[df$Concept %in% c("Monthly rent"),]$Amount)
-    period <- lowerBound %--% upperBound
-    entry <- list(i, as.factor(period), total.advance.payments, total.monthly.payments, total.final.payments, total.rent.payments)
+    #period <- lowerBound %--% upperBound
+    entry <- list(i, as.factor(lowerBound), as.factor(upperBound), total.advance.payments, total.monthly.payments, total.final.payments, total.rent.payments)
     monthlyRevenues <- rbind(monthlyRevenues, entry, stringsAsFactors = FALSE)
   }
-  names(monthlyRevenues) <- c("Month", "Period","Advance fees","Monthly fees","Final fees","Monthly rents")
-  write.csv(t(monthlyRevenues), file=paste(projectType,"MonthlyRevenueData.csv",sep=""))
+  names(monthlyRevenues) <- c("Month", "Start date", "End date", "Advance fees", "Monthly fees", "Final fees", "Monthly rents")
+  #write.csv(t(monthlyRevenues), file=paste("ExcelData/", projectType, "MonthlyRevenueData.csv", sep=""))
   
   result <- list(
-    positiveFlows,
+    revenues,
     projectsPresentValue,
     annualRevenues,
     monthlyRevenues,
     revenuesPlot,
     arrivalsPlot
   )
-  names(result) <- c("Flows", "Projects PV", "Annual revenues", "Monthly revenues", "Revenues", "Arrivals")
+  names(result) <- c("Revenues", "Projects PV", "Annual revenues", "Monthly revenues", "Revenues chart", "Arrivals chart")
   
   return(result)
 }
+
+# ---- Inhouse projects ----
 
 getInhouseProjectsCashFlows <- function(
   t, # Lifetime of the company
@@ -225,7 +226,7 @@ getInhouseProjectsCashFlows <- function(
   
   time <- 0
   arrivalTime <- 0
-  positiveFlows <- data.frame()
+  revenues <- data.frame()
   now <- as_date(Sys.time())
   valuationPeriodEndDate <- now + years(t)
   arrivals <- c()
@@ -248,9 +249,9 @@ getInhouseProjectsCashFlows <- function(
           if (monthlyRentDate > valuationPeriodEndDate) {
             break
           }
-          monthlyRent <- rlnorm(1, mean = log(averageMonthlyRent), sd = 1 / log(sdMonthlyRent))
+          monthlyRent <- rlnorm(1, mean = log(averageMonthlyRent), sd = 1 / log(sdMonthlyRent)) * (1 + 0.35) ^ arrivalTime
           entry <- list(monthlyRentDate, monthlyRent, TRUE, "Monthly rent")
-          positiveFlows <- rbind(positiveFlows, entry, stringsAsFactors = FALSE)
+          revenues <- rbind(revenues, entry, stringsAsFactors = FALSE)
           discountFactor <- 1 / (1 + y) ^ (arrivalTime + (developmentMonths / 12) + (count / 12))
           presentValue <- discountFactor * monthlyRent 
           presentValues <- c(presentValues, presentValue)
@@ -259,25 +260,25 @@ getInhouseProjectsCashFlows <- function(
       }
     }
   }
-  names(positiveFlows) <- c("Date","Amount","Income","Concept")
+  names(revenues) <- c("Date","Amount","Money MXN","Concept")
   breaksVec <- c(seq(from=floor_date(as_date(Sys.time()), unit="month"),
-                     to=ceiling_date(max(as_date(positiveFlows$Date)), unit="month"),
+                     to=ceiling_date(max(as_date(revenues$Date)), unit="month"),
                      by="6 months"))
   coloresChidos <- c("hotpink", "gold", "darkorange", "coral4")
-  revenuesPlot <- ggplot(data=positiveFlows, aes(x=as_date(positiveFlows$Date), y=positiveFlows$Amount)) +
+  revenuesPlot <- ggplot(data=revenues, aes(x=as_date(revenues$Date), y=revenues$Amount)) +
     geom_point(color="blue", size=0.5) + 
-    ylim(c(0,max(positiveFlows$Amount)+1000)) +
-    xlim(c(as_date(Sys.time()),max(as_date(positiveFlows$Date)))) +
-    labs(title="Revenues", x="Time (years)", y="Income") +
-    geom_linerange(aes(x=as_date(positiveFlows$Date), ymax=positiveFlows$Amount, ymin=0, color=positiveFlows$Concept)) +
-    guides(color=guide_legend(title="Types of income")) +
+    ylim(c(0,max(revenues$Amount)+1000)) +
+    xlim(c(as_date(Sys.time()),max(as_date(revenues$Date)))) +
+    labs(title="Revenues", x="Time", y="Money MXN") +
+    geom_linerange(aes(x=as_date(revenues$Date), ymax=revenues$Amount, ymin=0, color=revenues$Concept)) +
+    guides(color=guide_legend(title="Types of Money MXN")) +
     scale_x_date(breaks = breaksVec, date_minor_breaks = "1 month", limits = c(as_date(Sys.time()), NA)) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  #geom_linerange(aes(x=as_datetime(positiveFlows$Date), ymax=positiveFlows$Amount, ymin=0), color="#00AFBB") +
-  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Advance fee"),]$Amount), size=1, color=coloresChidos[1]) +
-  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Monthly fee"),]$Amount), size=1, color=coloresChidos[2]) +
-  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Final fee"),]$Amount), size=1, color=coloresChidos[3]) +
-  #geom_hline(yintercept=mean(positiveFlows[positiveFlows$Concept %in% c("Monthly rent"),]$Amount), size=1, color=coloresChidos[4]) +
+  #geom_linerange(aes(x=as_datetime(revenues$Date), ymax=revenues$Amount, ymin=0), color="#00AFBB") +
+  #geom_hline(yintercept=mean(revenues[revenues$Concept %in% c("Advance fee"),]$Amount), size=1, color=coloresChidos[1]) +
+  #geom_hline(yintercept=mean(revenues[revenues$Concept %in% c("Monthly fee"),]$Amount), size=1, color=coloresChidos[2]) +
+  #geom_hline(yintercept=mean(revenues[revenues$Concept %in% c("Final fee"),]$Amount), size=1, color=coloresChidos[3]) +
+  #geom_hline(yintercept=mean(revenues[revenues$Concept %in% c("Monthly rent"),]$Amount), size=1, color=coloresChidos[4]) +
   #scale_color_manual(values=coloresChidos)
   arrivalsPlot <- ggplot(data=data.frame(arrivals), aes(x=as_date(arrivals), y=c(0))) + 
     ylim(c(0,0)) +
@@ -294,14 +295,14 @@ getInhouseProjectsCashFlows <- function(
   for (i in 1:t) {
     lowerBound <- now + lubridate:::years(i - 1)
     upperBound <- lowerBound + lubridate:::years(1)
-    df <- positiveFlows[lowerBound <= as_date(positiveFlows$Date) & as_date(positiveFlows$Date) < upperBound,]
+    df <- revenues[lowerBound <= as_date(revenues$Date) & as_date(revenues$Date) < upperBound,]
     total.rent.payments <- sum(df[df$Concept %in% c("Monthly rent"),]$Amount)
-    period <- lowerBound %--% upperBound
-    entry <- list(as.factor(period), total.rent.payments)
+    #period <- lowerBound %--% upperBound
+    entry <- list(i, as.factor(lowerBound), as.factor(upperBound), total.rent.payments)
     annualRevenues <- rbind(annualRevenues, entry, stringsAsFactors = FALSE)
   }
-  names(annualRevenues) <- c("Period", "Monthly rents")
-  write.csv(t(annualRevenues), file=paste(projectType,"RevenueData.csv",sep=""))
+  names(annualRevenues) <- c("Year", "Start date", "End date", "Monthly rents")
+  #write.csv(t(annualRevenues), file=paste("ExcelData/", projectType, "AnnualRevenueData.csv", sep=""))
   
   # Get monthly revenues
   monthlyRevenues <- data.frame()
@@ -309,31 +310,27 @@ getInhouseProjectsCashFlows <- function(
   for (i in 1:operationMonths) {
     lowerBound <- sumMonths(now, i - 1)
     upperBound <- sumMonths(lowerBound, 1)
-    df <- positiveFlows[lowerBound <= as_date(positiveFlows$Date) & as_date(positiveFlows$Date) < upperBound,]
+    df <- revenues[lowerBound <= as_date(revenues$Date) & as_date(revenues$Date) < upperBound,]
     total.advance.payments <- sum(df[df$Concept %in% c("Advance fee"),]$Amount)
     total.monthly.payments <- sum(df[df$Concept %in% c("Monthly fee"),]$Amount)
     total.final.payments <- sum(df[df$Concept %in% c("Final fee"),]$Amount)
     total.rent.payments <- sum(df[df$Concept %in% c("Monthly rent"),]$Amount)
     period <- lowerBound %--% upperBound
-    entry <- list(i, as.factor(period), total.advance.payments, total.monthly.payments, total.final.payments, total.rent.payments)
+    entry <- list(i, as.factor(lowerBound), as.factor(upperBound), total.advance.payments, total.monthly.payments, total.final.payments, total.rent.payments)
     monthlyRevenues <- rbind(monthlyRevenues, entry, stringsAsFactors = FALSE)
   }
-  names(monthlyRevenues) <- c("Month", "Period","Advance fees","Monthly fees","Final fees","Monthly rents")
-  write.csv(t(monthlyRevenues), file=paste(projectType,"MonthlyRevenueData.csv",sep=""))
+  names(monthlyRevenues) <- c("Month", "Start date", "End date", "Advance fees", "Monthly fees", "Final fees", "Monthly rents")
+  #write.csv(t(monthlyRevenues), file=paste("ExcelData/", projectType, "MonthlyRevenueData.csv", sep=""))
   
   result <- list(
-    positiveFlows,
+    revenues,
     projectsPresentValue,
     annualRevenues,
     monthlyRevenues,
     revenuesPlot,
     arrivalsPlot
   )
-  names(result) <- c("Flows", "Projects PV", "Annual revenues", "Monthly revenues", "Revenues", "Arrivals")
+  names(result) <- c("Revenues", "Projects PV", "Annual revenues", "Monthly revenues", "Revenues chart", "Arrivals chart")
   
   return(result)
 }
-
-
-## Simulation
-

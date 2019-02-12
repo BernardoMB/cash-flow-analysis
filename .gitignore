@@ -1,0 +1,48 @@
+# See http://help.github.com/ignore-files/ for more about ignoring files.
+
+# Ignore files
+
+.RData
+
+.RHistory
+
+# Ignore RMarkdown files
+
+/Tareas/Tarea 01/RMarkdown/Tarea01.txt
+/Tareas/Tarea 01/RMarkdown/Tarea01_cache
+/Tareas/Tarea 01/RMarkdown/Tarea01.log
+/Tareas/Tarea 01/RMarkdown/Tarea01_files
+/Tareas/Tarea 01/RMarkdown/Tarea01.pdf
+/Tareas/Tarea 01/RMarkdown/Tarea01.html
+/Tareas/Tarea 01/RMarkdown/Tarea01.docx
+/Tareas/Tarea 01/RMarkdown/Tarea01.aux
+
+/Tareas/Tarea 02/RMarkdown/Tarea02.txt
+/Tareas/Tarea 02/RMarkdown/Tarea02_cache
+/Tareas/Tarea 02/RMarkdown/Tarea02.log
+/Tareas/Tarea 02/RMarkdown/Tarea02_files
+/Tareas/Tarea 02/RMarkdown/Tarea02.pdf  
+/Tareas/Tarea 02/RMarkdown/Tarea02.html 
+/Tareas/Tarea 02/RMarkdown/Tarea02.docx
+/Tareas/Tarea 02/RMarkdown/Tarea02.aux
+/Tareas/Tarea 02/RMarkdown/Tarea02.tex
+
+/Tareas/Tarea 03/RMarkdown/Tarea03.txt
+/Tareas/Tarea 03/RMarkdown/Tarea03_cache
+/Tareas/Tarea 03/RMarkdown/Tarea03.log
+/Tareas/Tarea 03/RMarkdown/Tarea03_files
+/Tareas/Tarea 03/RMarkdown/Tarea03.pdf  
+/Tareas/Tarea 03/RMarkdown/Tarea03.html 
+/Tareas/Tarea 03/RMarkdown/Tarea03.docx
+/Tareas/Tarea 03/RMarkdown/Tarea03.aux
+/Tareas/Tarea 03/RMarkdown/Tarea03.tex
+
+/Tareas/Tarea 04/RMarkdown/Tarea04.txt
+/Tareas/Tarea 04/RMarkdown/Tarea04_cache
+/Tareas/Tarea 04/RMarkdown/Tarea04.log
+/Tareas/Tarea 04/RMarkdown/Tarea04_files
+/Tareas/Tarea 04/RMarkdown/Tarea04.pdf  
+/Tareas/Tarea 04/RMarkdown/Tarea04.html 
+/Tareas/Tarea 04/RMarkdown/Tarea04.docx
+/Tareas/Tarea 04/RMarkdown/Tarea04.aux
+/Tareas/Tarea 04/RMarkdown/Tarea04.tex
