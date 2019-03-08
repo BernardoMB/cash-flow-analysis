@@ -1,31 +1,37 @@
-# Discounted cash flows
+# Functions for simulating future cash flows and calculate their present value
 
 library(ggplot2)
 library(lubridate)
 
-source("utils.R")
+source("./utils.R")
 
 # ---- Projects ----
 
-getProjectsCashFlows <- function(
-  t, # Lifetime of the company
-  # Mexican economy
-  y, # Annual interest rate
-  r, # Inflation rate
-  # Project
-  projectType, # Project type
-  averagePrice, # Expected price of the project
-  sdPrice, # Standar deviation of the price of the project
-  lambda, # Expected number of projects developed in a year
-  # Project development time distribution
-  sop,
-  probs,
-  # Payment scheme
-  advanceFeeRate, # Percentage of the final price that is paid at the begining of the project
-  monthlyFeeRate, # Percentage of the final price that is paid during the development of the project
-  finalFeeRate, # Percentage of the final price that is paid at the end of the development of the project
-  monthlyRentRate # Percentaje of the price of the project to be charged monthly for project maintenance
-) {
+#' Get the present value of each future cash flow that the company will have
+#' during the projection period due to the development of the specified type
+#' of project acording to the provided pricing scheme.
+#'
+#' @param t Lifetime of the company
+#' Mexican economy:
+#' @param y Annual interest rate
+#' @param r Inflation rate
+#' Project:
+#' @param project_type Project type
+#' @param averagePrice Expected price negociated with the client
+#' @param sdPrice Standar deviation of the negociated price with the client
+#' @param lambda Expected number of projects developed in a year
+#' Projected development time distribution: 
+#' @param sop Support of the discrete distribution of the development time measured in months
+#' @param probs Probabilities of the discrete destribution of the development time measured in months 
+#' Payment scheme (Rethink this assumtion. Is it a good assumption? Is it accurate?):
+#' @param advanceFeeRate Percentage of the final price that is paid at the begining of the project
+#' @param monthlyFeeRate Percentage of the final price that is paid during the development of the project
+#' @param finalFeeRate Percentage of the final price that is paid at the end of the development of the project
+#' @param monthlyRentRate Percentaje of the price of the project to be charged monthly for project maintenance
+#' @return A list that contains the simulated future revenues, the present value of those revenues, simulated monthly revenues, simulated annual revenues, revenue time series and the arrivals of projects in time.
+#' @examples
+#' getProjectCashFlows(3, 0.07, -0.01, "LargeProject", 100000, 30000, 3, c(1, 2, 3), c(4/6, 1/6, 1/6), 0.5, 0, 0.5, 0.025)
+getProjectsCashFlows <- function(t, y, r, projectType, averagePrice, sdPrice, lambda, sop, probs, advanceFeeRate, monthlyFeeRate, finalFeeRate, monthlyRentRate) {
   # Calculate monthly effective interest rate
   y12 <- ( 1 + y ) ^ ( 1 / 12) - 1
   time <- 0
@@ -184,21 +190,27 @@ getProjectsCashFlows <- function(
 
 # ---- Inhouse projects ----
 
-getInhouseProjectsCashFlows <- function(
-  t, # Lifetime of the company
-  # Mexican economy
-  y, # Annual interest rate
-  r, # Inflation rate
-  # Project
-  projectType, # Project type
-  lambda, # Expected number of projects developed in a year
-  # Development time distribution
-  sop,
-  probs,
-  # Payment scheme
-  averageMonthlyRent, # Project average monthly rent
-  sdMonthlyRent # Project monthly rent standar deviation
-) {
+#' Get the present value of each future cash flow that the company will have
+#' during the projection period due to the development of inhouse projects
+#' acording to the provided revenue scheme.
+#'
+#' @param t Lifetime of the company
+#' Mexican economy:
+#' @param y Annual interest rate
+#' @param r Inflation rate
+#' Project:
+#' @param project_type Project type
+#' @param lambda Expected number of projects developed in a year
+#' Projected development time distribution: 
+#' @param sop Support of the discrete distribution of the development time measured in months
+#' @param probs Probabilities of the discrete destribution of the development time measured in months 
+#' Revenue scheme:
+#' @param averageMonthlyRent Project average monthly rent
+#' @param sdMonthlyRent Project monthly rent standar deviation
+#' @return A list that contains the simulated future revenues, the present value of those revenues, simulated monthly revenues, simulated annual revenues, revenue time series and the arrivals of projects in time.
+#' @examples
+#' getInhouseProjectsCashFlows(3, 0.07, -0.01, "InhouseProjects", 1.5, c(10,11,12,13,14,15,16), c(2/37,4/37,15/37,10/37,3/37,2/37,1/37), 200000, 30)
+getInhouseProjectsCashFlows <- function(t, y, r, projectType, lambda, sop, probs, averageMonthlyRent, sdMonthlyRent) {
   # Calculate monthly effective interest rate
   y12 <- ( 1 + y ) ^ ( 1 / 12) - 1
   

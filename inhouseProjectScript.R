@@ -1,7 +1,7 @@
 library(ggplot2)
 library(lubridate)
 
-source("Cash flow analysis/utils.R")
+source("utils.R")
 
 # ---- Inhouse projects algorithm ----
 

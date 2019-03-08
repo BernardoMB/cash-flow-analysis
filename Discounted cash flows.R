@@ -1,6 +1,6 @@
 # Discounted cash flows
 
-source("Cash flow analysis/discounted-cash-flows.R")
+source("discounted-cash-flows.R")
 
 t=5 # Lifetime of the company
 # Mexican economy

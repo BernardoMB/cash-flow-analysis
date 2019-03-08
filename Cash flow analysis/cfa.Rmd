@@ -10,12 +10,16 @@ output:
 knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
 knitr::opts_chunk$set(message = FALSE)
+# Install packages
+#install.packages(c("lubridate", "ggplot2", "latex2exp"))
 # Load libraries
 library(lubridate)
 library(ggplot2)
 library(latex2exp)
 # Avoid scientific notation
 options(scipen = 999)
+# Source code from project
+source("./../discounted-cash-flows.R", chdir = TRUE) # chdir = TRUE for properly handle source calls from soruced file.
 ```
 
 ```{r economical assumptions}
@@ -45,9 +49,6 @@ The company will work on $5$ types of projects at the same time:
 \end{enumerate}
 
 Each type of project will arrive to the company according to a Poisson point process with a given ratio $\lambda$ per year. In other words, the company will arrange contracts with frequency in such a way that it will have development start points randomly distributed in the timeline with a given average. For example, we will consider that the company will develop an average of $\lambda=24$ landing pages in a year (two each month). We will make these kind of assumptions for each type of project the company wants to develop and the average of contracts in a year will depend on the size of the project. 
-
-```{r, code=readLines("discounted-cash-flows.R")}
-```
 
 \section{Landing pages}
 
@@ -127,7 +128,7 @@ The vertical line in the graph above represents the average development time of 
 The positive cash flows that the company will obtain during the following $`r t`$ years due to the development of these type of projects will look similar to the following graph:
 
 ```{r landings cash flows graph, fig.align = "center"}
-valueLandings$Revenues
+valueLandings$`Revenues chart`
 ```
 
 Project arrivals to the company will look like the following graph:
@@ -220,7 +221,7 @@ The vertical line in the graph above represents the average development time of 
 The positive cash flows that the company will obtain during the following $`r t`$ years due to the development of these type of projects will look similar to the following graph:
 
 ```{r small projects cash flows graph, fig.align = "center"}
-valueSmallProjects$Revenues
+valueSmallProjects$`Revenues chart`
 ```
 
 Project arrivals to the company will look like the following graph:
@@ -313,7 +314,7 @@ The vertical line in the graph above represents the average development time of 
 The positive cash flows that the company will obtain during the following $`r t`$ years due to the development of these type of projects will look similar to the following graph:
 
 ```{r large projects cash flows graph, fig.align = "center"}
-valueLargeProjects$Revenues
+valueLargeProjects$`Revenues chart`
 ```
 
 Project arrivals to the company will look like the following graph:
@@ -406,7 +407,7 @@ The vertical line in the graph above represents the average development time of 
 The positive cash flows that the company will obtain during the following $`r t`$ years due to the development of these type of projects will look similar to the following graph:
 
 ```{r enterprice projects cash flows graph, fig.align = "center"}
-valueEnterpriceProjects$Revenues
+valueEnterpriceProjects$`Revenues chart`
 ```
 
 Project arrivals to the company will look like the following graph:
@@ -475,7 +476,7 @@ The vertical line in the graph above represents the average development time of 
 The positive cash flows that the company will obtain during the following $`r t`$ years due to inhouse projects development will look similar to the following graph:
 
 ```{r inhouse projects cash flows graph, fig.align = "center"}
-valueInhouseProjects$Revenues
+valueInhouseProjects$`Revenues chart`
 ```
 
 Project arrivals to the company will look like the following graph:
