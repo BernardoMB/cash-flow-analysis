@@ -239,7 +239,7 @@ Given the previous future cash flows, the present value of the revenues of these
 projectType="03LargeProjects" # Project type
 averagePrice=200000 # Expected price of the project
 sdPrice=70000 # Standar deviation of the price of the project
-lambda=2 # Expected number of projects developed in a year
+lambda=5 # Expected number of projects developed in a year
 # Development time distribution
 sop=c(   10,   11,    12,    13,   14,   15,   16)
 probs=c(2/37,4/37,15/37,10/37,3/37,2/37,1/37)
@@ -332,7 +332,7 @@ Given the previous future cash flows, the present value of the revenues of these
 projectType="04EnterpriceProjects" # Project type
 averagePrice=1600000 # Expected price of the project
 sdPrice=200000 # Standar deviation of the price of the project
-lambda=1 # Expected number of projects developed in a year
+lambda=2 # Expected number of projects developed in a year
 # Development time distribution
 sop=c(   13,   14,    15,    16,   17,   18,   19)
 probs=c(2/37,4/37,15/37,10/37,3/37,2/37,1/37)
