@@ -1,4 +1,19 @@
-.Rproj.user
-.Rhistory
+# See http://help.github.com/ignore-files/ for more about ignoring files.
+
+# Ignore files
+
 .RData
-.Ruserdata
+
+.RHistory
+
+# Ignore RMarkdown files
+
+/Cash flow analysis/cfa.txt
+/Cash flow analysis/cfa_cache
+/Cash flow analysis/cfa.log
+/Cash flow analysis/cfa_files
+/Cash flow analysis/cfa.pdf
+/Cash flow analysis/cfa.html
+/Cash flow analysis/cfa.docx
+/Cash flow analysis/cfa.aux
+.Rproj.user
