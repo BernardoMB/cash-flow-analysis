@@ -5,31 +5,6 @@ library(lubridate)
 
 source("./utils.R")
 
-<<<<<<< HEAD:Cash flow analysis/discounted-cash-flows.R
-sampleFromMonthsDistribution <- function(sop, probs) {
-  if (sum(probs) != 1) {
-    stop(paste("Probs should add up 1. Got ", sum(probs)))
-  }
-  probsAc <- cumsum(probs)
-  unif <- runif(1)
-  for (i in 1:length(probsAc)) {
-    if (unif < probsAc[i]) {
-      return(sop[i])
-    }  
-  }
-}
-
-sumMonths <- function(date, months) {
-  result <- date + lubridate:::months.numeric(months)
-  if (is.na(result)) {
-    result <- date + lubridate:::days(3) + lubridate:::months.numeric(months)
-    return(result)
-  }
-  return(result)
-}
-
-=======
->>>>>>> d1c49e448131a5054f356c7786219069349af74f:discounted-cash-flows.R
 # ---- Projects ----
 
 #' Get the present value of each future cash flow that the company will have
@@ -215,23 +190,6 @@ getProjectsCashFlows <- function(t, y, r, projectType, averagePrice, sdPrice, la
 
 # ---- Inhouse projects ----
 
-<<<<<<< HEAD:Cash flow analysis/discounted-cash-flows.R
-getInhouseProjectsCashFlows <- function(
-  t, # Lifetime of the company
-  # Mexican economy
-  y, # Annual interest rate
-  r, # Inflation rate
-  # Project
-  projectType, # Project type
-  lambda, # Expected number of projects developed in a year
-  # Development time distribution
-  sop,
-  probs,
-  # Payment scheme
-  averageMonthlyRent, # Project average monthly rent
-  sdMonthlyRent # Project monthly rent standar deviation
-) {
-=======
 #' Get the present value of each future cash flow that the company will have
 #' during the projection period due to the development of inhouse projects
 #' acording to the provided revenue scheme.
@@ -253,7 +211,6 @@ getInhouseProjectsCashFlows <- function(
 #' @examples
 #' getInhouseProjectsCashFlows(3, 0.07, -0.01, "InhouseProjects", 1.5, c(10,11,12,13,14,15,16), c(2/37,4/37,15/37,10/37,3/37,2/37,1/37), 200000, 30)
 getInhouseProjectsCashFlows <- function(t, y, r, projectType, lambda, sop, probs, averageMonthlyRent, sdMonthlyRent) {
->>>>>>> d1c49e448131a5054f356c7786219069349af74f:discounted-cash-flows.R
   # Calculate monthly effective interest rate
   y12 <- ( 1 + y ) ^ ( 1 / 12) - 1
   
